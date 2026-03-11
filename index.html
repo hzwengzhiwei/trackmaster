@@ -1,0 +1,1972 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>轨迹封面大师</title>
+    <!-- 在线版本 (需要网络连接) -->
+    <!-- <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script> -->
+
+    <!-- 离线版本 (本地资源) -->
+    <link href="./assets/fonts/noto-sans-sc.css" rel="stylesheet">
+    <script src="./assets/js/tailwind.min.js"></script>
+    <script src="./assets/js/fabric.min.js"></script>
+    <link rel="stylesheet" href="./assets/css/font-awesome.min.css">
+    <script src="./assets/js/heic2any.min.js"></script>
+    <script>
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('keydown', e => {
+    if (
+        e.key === 'F12' ||
+        (e.ctrlKey && e.key === 'u') ||
+        (e.ctrlKey && e.shiftKey && e.key === 'I')
+    ) {
+        e.preventDefault();
+    }
+    });
+    </script>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --secondary: #7209b7;
+        }
+
+        body {
+            font-family: 'DingTalk JinBuTi', 'Noto Sans SC', system-ui, sans-serif;
+            background: #0f172a;
+            overflow: hidden;
+        }
+
+        .canvas-bg {
+            background-color: #1e293b;
+            background-image: radial-gradient(#334155 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        input[type="range"] {
+            accent-color: #3b82f6;
+        }
+
+        .scroller::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .scroller::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+
+        .style-btn.active {
+            @apply bg-blue-600 text-white border-blue-500;
+        }
+
+        /* 模态框动画 */
+        .modal-enter {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+
+        .modal-enter-active {
+            opacity: 1;
+            transform: scale(1);
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        .modal-exit {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .modal-exit-active {
+            opacity: 0;
+            transform: scale(0.95);
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        /* Toast 样式 */
+        #toast {
+            visibility: hidden;
+            min-width: 120px;
+            /* 半透明磨砂背景 */
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            color: #fff;
+            text-align: center;
+            /* 胶囊圆角 */
+            border-radius: 9999px;
+            padding: 10px 24px;
+            /* 描边增强质感 */
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+
+            position: fixed;
+            z-index: 100;
+            /* 右上角定位 */
+            right: 30px;
+            top: 30px;
+
+            /* 初始状态：向右偏移出屏幕 */
+            transform: translateX(120%);
+            opacity: 0;
+
+            /* 弹性过渡动画 */
+            transition: transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28), opacity 0.3s ease;
+            font-size: 14px;
+            pointer-events: none;
+        }
+
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            /* 显示状态：回到原位 */
+            transform: translateX(0);
+        }
+
+        .gradient-text {
+            background: linear-gradient(to right, #ff00cc, #3333ff, #00ccff, #00ff00, #ffff00, #ff0000);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            background-size: 300% auto;
+            animation: shine 4s linear infinite;
+        }
+
+        @keyframes shine {
+            to {
+                background-position: 300% center;
+            }
+        }
+
+        .glass-panel {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+
+    </style>
+</head>
+
+<body class="h-screen w-screen bg-slate-900 overflow-hidden relative select-none">
+    <!-- 省略中间 HTML 结构，保持原样不变 -->
+    <div class="hidden">
+        <input type="range" id="strokeWidth" min="2" max="50" value="15">
+        <input type="range" id="pointSize" min="0" max="100" value="30">
+        <select id="colorMode">
+            <option value="gradient">海拔渐变</option>
+            <option value="solid">纯色填充</option>
+        </select>
+        <div id="solidColorRow"><input type="color" id="trackSolidColor" value="#ff4500"></div>
+        <input type="range" id="selOpacity" value="1">
+    </div>
+
+    <div id="canvasWrapper" class="absolute inset-0 z-0 canvas-bg"><canvas id="c"></canvas></div>
+
+<div class="absolute top-5 left-5 z-30 flex flex-col items-start gap-2 pointer-events-none">
+    <div
+        class="glass-panel px-8 py-3 rounded-full pointer-events-auto shadow-2xl flex items-center justify-center backdrop-blur-sm border border-white/10">
+        <span class="gradient-text text-xl"
+            style="font-family: 'DingTalk JinBuTi', 'Noto Sans SC', sans-serif;">TrackMaster</span>
+    </div>
+</div>
+
+    <div class="absolute top-32 left-5 z-30 flex flex-col gap-2">
+        <div class="group relative">
+            <button
+                class="glass-panel w-12 h-12 rounded-xl flex items-center justify-center text-white hover:bg-white/20 transition shadow-lg"><i
+                    class="fa-regular fa-image text-lg"></i></button>
+            <input type="file" id="bgInput" accept="image/*,.heic,.heif"
+                class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" title="上传底图" />
+            <span
+                class="absolute left-14 top-1/2 -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">上传底图</span>
+        </div>
+        <div class="group relative">
+            <button
+                class="glass-panel w-12 h-12 rounded-xl flex items-center justify-center text-white hover:bg-white/20 transition shadow-lg"><i
+                    class="fa-solid fa-route text-lg"></i></button>
+            <input type="file" id="trackInput" accept=".gpx,.kml,.xml,.txt,*/*"
+                class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" title="上传轨迹" />
+            <span
+                class="absolute left-14 top-1/2 -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">上传轨迹</span>
+        </div>
+        <div class="group relative">
+            <button id="resetBtn" onclick="resetAll()"
+                class="glass-panel w-12 h-12 rounded-xl flex items-center justify-center text-white hover:bg-red-500/30 transition shadow-lg"><i
+                    class="fa-solid fa-rotate-left text-lg"></i></button>
+            <span
+                class="absolute left-14 top-1/2 -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">重置清空</span>
+        </div>
+    </div>
+
+    <div class="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2 w-auto">
+        <div id="layoutMenu"
+            class="hidden glass-panel rounded-xl w-64 p-3 text-white shadow-2xl flex flex-col gap-2 mb-2 transition-all duration-200 origin-bottom transform scale-95 opacity-0">
+            <div class="text-xs text-slate-400 px-2 pb-1 border-b border-white/10 flex justify-between items-center">
+                <span>排版样式库</span><button onclick="toggleLayoutMenu()" class="hover:text-white"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex flex-col gap-1 max-h-60 overflow-y-auto scroller pr-1">
+                <div class="text-[10px] text-blue-400 mt-1 px-2 font-bold">系统默认</div>
+                <div id="systemLayoutList" class="flex flex-col gap-1"></div>
+                <div class="text-[10px] text-pink-400 mt-2 px-2 font-bold flex justify-between"><span>我的样式</span><span
+                        id="userLayoutCount" class="text-white/50">0</span></div>
+                <div id="userLayoutList"
+                    class="flex flex-col gap-1 empty:after:content-['暂无保存样式'] empty:after:text-[10px] empty:after:text-slate-600 empty:after:px-2">
+                </div>
+            </div>
+            <div class="pt-2 border-t border-white/10 flex gap-2 mt-1">
+                <input type="text" id="layoutNameInput" placeholder="当前排版命名..."
+                    class="flex-1 bg-black/30 border border-white/10 rounded px-2 py-1 text-xs outline-none focus:border-blue-500 text-white placeholder-slate-600">
+                <button onclick="LayoutManager.saveUserLayout()"
+                    class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1 rounded transition whitespace-nowrap">保存</button>
+            </div>
+        </div>
+        <div class="flex items-center gap-4 pointer-events-auto">
+            <div class="glass-panel rounded-full px-6 py-3 flex items-center gap-6 text-white shadow-2xl">
+                <button onclick="addNewText()"
+                    class="hover:text-blue-400 transition flex flex-col items-center gap-1 group" title="添加文字"><i
+                        class="fa-solid fa-font text-lg"></i></button>
+                <button onclick="addMarker()"
+                    class="hover:text-orange-400 transition flex flex-col items-center gap-1 group" title="添加标记"><i
+                        class="fa-solid fa-location-dot text-lg"></i></button>
+                <div class="w-px h-6 bg-white/20"></div>
+                <button id="layoutBtn" onclick="toggleLayoutMenu()"
+                    class="hover:text-green-400 transition flex flex-col items-center gap-1 group" title="排版样式"><i
+                        class="fa-solid fa-square-poll-horizontal text-lg"></i></button>
+                <button onclick="fitView()"
+                    class="hover:text-yellow-400 transition flex flex-col items-center gap-1 group" title="适配居中"><i
+                        class="fa-solid fa-compress text-lg"></i></button>
+                <div class="w-px h-6 bg-white/20"></div>
+                <button onclick="zoomIn()"
+                    class="hover:text-green-400 transition flex flex-col items-center gap-1 group" title="放大"><i
+                        class="fa-solid fa-plus text-lg"></i></button>
+                <button onclick="zoomOut()"
+                    class="hover:text-red-400 transition flex flex-col items-center gap-1 group" title="缩小"><i
+                        class="fa-solid fa-minus text-lg"></i></button>
+            </div>
+            <button id="downloadBtn" onclick="toggleModal(true)"
+                class="glass-panel bg-gradient-to-r from-violet-600/80 to-indigo-600/80 hover:from-violet-500/90 hover:to-indigo-500/90 text-white w-12 h-12 md:w-auto md:px-6 md:rounded-full rounded-full shadow-2xl flex items-center justify-center transition transform hover:scale-105 border border-white/20 backdrop-blur-xl"
+                title="导出图片">
+                <i class="fa-solid fa-save text-lg"></i><span
+                    class="hidden md:inline-block ml-2 font-bold text-sm">导出图片</span>
+            </button>
+        </div>
+    </div>
+    <div id="toast">提示信息</div>
+    <div id="exportModal"
+        class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-200">
+        <div class="bg-white rounded-xl shadow-2xl w-[400px] overflow-hidden text-slate-800 font-sans">
+            <div class="flex justify-between items-center p-4 border-b border-slate-100">
+                <h3 class="font-bold text-lg flex items-center text-slate-700"><i
+                        class="fa-solid fa-download mr-2 text-slate-500"></i> 导出选项</h3>
+                <button onclick="toggleModal(false)"
+                    class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center transition"><i
+                        class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="flex flex-col">
+                <!-- 上部：导出质量控制 -->
+                <div class="p-4 bg-slate-50 border-b border-slate-200">
+                    <!-- 上行：导出质量标题 + 滑块 + 质量显示 -->
+                    <div class="flex items-center gap-4 mb-3">
+                        <h4 class="text-sm font-semibold text-slate-700 whitespace-nowrap">图片质量</h4>
+                        <!-- 质量滑块 - 水平方向 -->
+                        <div class="flex-1">
+                            <div class="relative h-2 bg-slate-200 rounded-full" id="qualitySliderContainer">
+                                <div id="qualityThumb" class="absolute w-6 h-6 bg-blue-500 rounded-full shadow-lg border-2 border-white transition-all duration-200 hover:bg-blue-600 cursor-pointer -top-2"
+                                     style="left: 70%; transform: translateX(-50%);"></div>
+                                <input type="hidden" id="exportQuality" value="80">
+                            </div>
+                        </div>
+                        <!-- 质量显示 -->
+                        <div id="qualityDisplay" class="text-xl text-center font-bold text-blue-600">90%</div>
+                    </div>
+                    <!-- 下行：质量预设 -->
+                    <div class="flex justify-center gap-2">
+                        <button onclick="setQuality(60)" class="text-xs py-1 px-2 bg-slate-200 hover:bg-slate-300 rounded text-slate-700 transition">小文件</button>
+                        <button onclick="setQuality(80)" class="text-xs py-1 px-2 bg-blue-100 hover:bg-blue-200 rounded text-blue-700 transition">标准</button>
+                        <button onclick="setQuality(90)" class="text-xs py-1 px-2 bg-slate-200 hover:bg-slate-300 rounded text-slate-700 transition">高品质</button>
+                        <button onclick="setQuality(100)" class="text-xs py-1 px-2 bg-slate-200 hover:bg-slate-300 rounded text-slate-700 transition">最高品质</button>
+                    </div>
+                </div>
+                <!-- 下部：预览 -->
+                <div class="p-6 flex flex-col items-center bg-slate-50">
+                    <p class="font-bold text-lg mb-4 text-slate-700">请我喝一杯</p>
+                    <div class="relative bg-white p-2 rounded-xl shadow-inner border border-dashed border-slate-300">
+                        <img src="assets/a.jpg" alt="预览" class="w-40 h-40 object-cover rounded-lg">
+                    </div>
+                </div>
+                <div class="p-4 bg-white border-t border-slate-100">
+                <button onclick="executeDownload()"
+                    class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-3 rounded-lg transition border border-slate-200 text-sm">导出图片</button>
+                </div>
+            </div>
+            </div>
+
+        </div>
+    </div>
+    <div id="floatingMenu"
+        class="hidden absolute z-40 bg-white rounded-lg shadow-xl border border-slate-200 p-1 flex flex-col gap-1 select-none transition-opacity duration-200"
+        style="left:0; top:0;">
+        <div class="flex items-center gap-2">
+            <div id="ft-text-tools" class="hidden flex items-center gap-1 border-r border-slate-200 pr-2">
+                <!-- 字体选择器 -->
+                <select onchange="batchUpdateStyle('fontFamily', this.value)" id="ft-fontFamily"
+                    class="w-24 text-xs bg-slate-100 rounded px-1 py-1 outline-none text-slate-700 mr-1"
+                    style="font-family: inherit;" title="字体">
+
+                    <!-- 钉钉进步体为默认 -->
+                    <option value="DingTalk JinBuTi" style="font-family: 'DingTalk JinBuTi'; font-size: 14px;">钉钉进步体</option>
+                    <option value="Noto Sans SC" style="font-family: 'Noto Sans SC'; font-size: 14px;">思源黑体</option>
+                    <option value="system-ui" style="font-family: 'system-ui'; font-size: 14px;">系统默认</option>
+                </select>
+                <select onchange="batchUpdateStyle('fontSize', this.value)" id="ft-fontSize"
+                    class="w-12 text-xs bg-slate-100 rounded px-1 py-1 outline-none text-slate-700">
+                    <option value="20">20</option>
+                    <option value="20">30</option>
+                    <option value="40">40</option>
+                    <option value="60">60</option>
+                    <option value="80">80</option>
+                    <option value="100">100</option>
+                    <option value="120">120</option>
+                    <option value="150">150</option>
+                </select>
+                <div class="relative w-6 h-6 overflow-hidden rounded-full border border-slate-300 cursor-pointer"
+                    title="文字颜色">
+                    <input type="color" oninput="batchUpdateStyle('fill', this.value)" id="ft-color"
+                        class="absolute -top-2 -left-2 w-10 h-10 cursor-pointer p-0 opacity-0">
+                    <div id="ft-color-preview" class="w-full h-full bg-black pointer-events-none"></div>
+                </div>
+                <button onclick="batchToggleStyle('fontWeight', 'bold')" id="ft-bold"
+                    class="w-6 h-6 hover:bg-slate-100 rounded text-slate-600 text-xs"><i
+                        class="fa-solid fa-bold"></i></button>
+                <button onclick="batchToggleStyle('fontStyle', 'italic')" id="ft-italic"
+                    class="w-6 h-6 hover:bg-slate-100 rounded text-slate-600 text-xs"><i
+                        class="fa-solid fa-italic"></i></button>
+                <div class="flex items-center gap-1 bg-slate-50 rounded px-1 ml-1 border border-slate-100">
+                    <button onclick="batchToggleStroke()" id="ft-stroke"
+                        class="w-5 h-5 hover:bg-slate-200 rounded text-slate-600 text-[10px]" title="描边开关"><i
+                            class="fa-regular fa-square"></i></button>
+                    <div class="relative w-4 h-4 overflow-hidden rounded-full border border-slate-300 cursor-pointer"
+                        title="描边颜色">
+                        <input type="color" oninput="batchUpdateStyle('stroke', this.value)" id="ft-text-stroke-color"
+                            class="absolute -top-2 -left-2 w-8 h-8 cursor-pointer p-0 opacity-0">
+                        <div id="ft-text-stroke-preview" class="w-full h-full bg-white pointer-events-none"></div>
+                    </div>
+                    <input type="range" oninput="batchUpdateStrokeWidth(this.value)" id="ft-text-stroke-width" min="0.5"
+                        max="10" step="0.5" class="w-8 h-1 bg-slate-300 rounded-lg cursor-pointer" title="描边粗细">
+                </div>
+                <button onclick="batchToggleShadow()" id="ft-text-shadow"
+                    class="w-6 h-6 hover:bg-slate-100 rounded text-slate-600 text-xs ml-1" title="阴影开关"><i
+                        class="fa-solid fa-clone"></i></button>
+            </div>
+            <div id="ft-marker-tools" class="hidden flex items-center gap-2 border-r border-slate-200 pr-2">
+                <div class="flex items-center gap-1">
+                    <span class="text-[10px] text-slate-400">填充</span>
+                    <div class="relative w-6 h-6 overflow-hidden rounded-full border border-slate-300 cursor-pointer">
+                        <input type="color" oninput="batchUpdateMarker('fill', this.value)" id="ft-marker-fill"
+                            class="absolute -top-2 -left-2 w-10 h-10 cursor-pointer p-0 opacity-0">
+                        <div id="ft-marker-fill-preview" class="w-full h-full bg-orange-500 pointer-events-none"></div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1">
+                    <span class="text-[10px] text-slate-400">描边</span>
+                    <div class="relative w-6 h-6 overflow-hidden rounded-full border border-slate-300 cursor-pointer">
+                        <input type="color" oninput="batchUpdateMarker('stroke', this.value)" id="ft-marker-stroke"
+                            class="absolute -top-2 -left-2 w-10 h-10 cursor-pointer p-0 opacity-0">
+                        <div id="ft-marker-stroke-preview" class="w-full h-full bg-white pointer-events-none"></div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1" title="描边宽度">
+                    <i class="fa-regular fa-circle-dot text-slate-400 text-xs"></i>
+                    <input type="range" oninput="batchUpdateMarker('strokeWidth', this.value)" id="ft-marker-width"
+                        min="0" max="10" step="0.5" class="w-12 h-1 bg-slate-200 rounded-lg cursor-pointer">
+                </div>
+                <button onclick="batchToggleShadow()" id="ft-marker-shadow"
+                    class="w-6 h-6 hover:bg-slate-100 rounded text-slate-600 text-xs ml-1" title="阴影开关"><i
+                        class="fa-solid fa-clone"></i></button>
+            </div>
+            <div id="ft-track-tools" class="hidden flex items-center gap-2 border-r border-slate-200 pr-2">
+                <div class="flex items-center gap-1" title="轨迹粗细">
+                    <i class="fa-solid fa-wave-square text-slate-400 text-xs"></i>
+                    <input type="range" oninput="syncTrackSetting('strokeWidth', this.value)" id="ft-track-width"
+                        min="2" max="50" class="w-12 h-1 bg-slate-200 rounded-lg cursor-pointer">
+                </div>
+                <div class="flex items-center gap-1" title="起终点大小">
+                    <i class="fa-solid fa-location-dot text-slate-400 text-xs"></i>
+                    <input type="range" oninput="syncTrackSetting('pointSize', this.value)" id="ft-track-point" min="0"
+                        max="100" class="w-12 h-1 bg-slate-200 rounded-lg cursor-pointer">
+                </div>
+                <select onchange="syncTrackSetting('colorMode', this.value)" id="ft-track-mode"
+                    class="text-xs bg-slate-100 rounded px-1 py-1 outline-none text-slate-700">
+                    <option value="gradient">海拔渐变</option>
+                    <option value="solid">纯色填充</option>
+                </select>
+                <div id="ft-track-solid-color-container"
+                    class="hidden relative w-6 h-6 overflow-hidden rounded-full border border-slate-300 cursor-pointer"
+                    title="轨迹颜色">
+                    <input type="color" oninput="syncTrackSetting('trackSolidColor', this.value)"
+                        id="ft-track-solid-color"
+                        class="absolute -top-2 -left-2 w-10 h-10 cursor-pointer p-0 opacity-0">
+                    <div id="ft-track-solid-color-preview" class="w-full h-full bg-orange-500 pointer-events-none">
+                    </div>
+                </div>
+                <button onclick="batchToggleShadow()" id="ft-track-shadow"
+                    class="w-6 h-6 hover:bg-slate-100 rounded text-slate-600 text-xs ml-1" title="阴影开关"><i
+                        class="fa-solid fa-clone"></i></button>
+            </div>
+            <div id="ft-multi-tools" class="hidden flex items-center gap-1">
+                <div class="relative group">
+                    <button id="ft-align-btn" onclick="toggleAlignMenu()"
+                        class="px-2 py-1 hover:bg-blue-50 text-slate-700 text-xs rounded flex items-center gap-1 transition">
+                        <i class="fa-solid fa-align-left"></i> 排版
+                    </button>
+                    <div id="ft-align-submenu"
+                        class="hidden absolute top-full left-0 mt-2 w-36 bg-white rounded-lg shadow-xl border border-slate-200 p-2 grid grid-cols-3 gap-1 z-50">
+                        <button onclick="alignObjects('left')" title="左对齐"
+                            class="h-8 hover:bg-slate-100 rounded text-slate-600 flex items-center justify-center"><svg
+                                width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M2 2h1v12H2V2zm3 1h8v3H5V3zm0 6h5v3H5V9z" />
+                            </svg></button>
+                        <button onclick="alignObjects('centerH')" title="水平居中"
+                            class="h-8 hover:bg-slate-100 rounded text-slate-600 flex items-center justify-center"><svg
+                                width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M7.5 2h1v12h-1V2zm-4 1h9v3h-9V3zm1.5 6h6v3h-6V9z" />
+                            </svg></button>
+                        <button onclick="alignObjects('right')" title="右对齐"
+                            class="h-8 hover:bg-slate-100 rounded text-slate-600 flex items-center justify-center"><svg
+                                width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M13 2h1v12h-1V2zM3 3h8v3H3V3zm3 6h5v3H6V9z" />
+                            </svg></button>
+                        <button onclick="alignObjects('top')" title="顶对齐"
+                            class="h-8 hover:bg-slate-100 rounded text-slate-600 flex items-center justify-center"><svg
+                                width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M2 2v1h12V2H2zm1 3v8h3V5H3zm6 0v5h3V5H9z" />
+                            </svg></button>
+                        <button onclick="alignObjects('centerV')" title="垂直居中"
+                            class="h-8 hover:bg-slate-100 rounded text-slate-600 flex items-center justify-center"><svg
+                                width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M2 7.5v1h12v-1H2zm1-4v9h3v-9H3zm6 1.5v6h3v-6H9z" />
+                            </svg></button>
+                        <button onclick="alignObjects('bottom')" title="底对齐"
+                            class="h-8 hover:bg-slate-100 rounded text-slate-600 flex items-center justify-center"><svg
+                                width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M2 13v1h12v-1H2zm1-8v8h3V5H3zm6 3v5h3V8H9z" />
+                            </svg></button>
+                        <button onclick="distributeObjects('h')" title="水平均布"
+                            class="h-8 hover:bg-slate-100 rounded text-slate-600 col-span-1.5 flex items-center justify-center border-t border-slate-100 mt-1"><svg
+                                width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M2 2h2v12H2V2zm10 0h2v12h-2V2zM6.5 4h3v8h-3V4z" />
+                            </svg></button>
+                        <button onclick="distributeObjects('v')" title="垂直均布"
+                            class="h-8 hover:bg-slate-100 rounded text-slate-600 col-span-1.5 flex items-center justify-center border-t border-slate-100 mt-1"><svg
+                                width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M2 2v2h12V2H2zm0 10v2h12v-2H2zM4 6.5v3h8v-3H4z" />
+                            </svg></button>
+                    </div>
+                </div>
+                <button id="ft-group-btn" onclick="toggleGroup()"
+                    class="px-2 py-1 hover:bg-orange-50 text-slate-700 text-xs rounded flex items-center gap-1 transition">
+                    <i class="fa-regular fa-object-group"></i> <span>成组</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        const dbName = 'TrackMasterDB';
+        const storeName = 'CurrentState';
+        const dbVersion = 1;
+
+        const idb = {
+            open: () => new Promise((resolve, reject) => {
+                const request = indexedDB.open(dbName, dbVersion);
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(storeName)) {
+                        db.createObjectStore(storeName);
+                    }
+                };
+            }),
+            put: async (key, value) => {
+                const db = await idb.open();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(storeName, 'readwrite');
+                    const store = tx.objectStore(storeName);
+                    store.put(value, key);
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = () => reject(tx.error);
+                });
+            },
+            get: async (key) => {
+                const db = await idb.open();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(storeName, 'readonly');
+                    const store = tx.objectStore(storeName);
+                    const req = store.get(key);
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                });
+            }
+        };
+
+        class HistoryManager {
+            constructor() {
+                this.history = [];
+                this.index = -1;
+                this.locked = false;
+                this.maxHistory = 20;
+            }
+            save(isAutoSave = false) {
+                if (this.locked) return;
+                const state = {
+                    canvas: canvas.toJSON(['id', 'selectable', 'evented', 'isStat', 'originalSrc']),
+                    global: { rawPoints, simplifiedPoints, trackBounds, trackStats, hasBg: !!bgImage },
+                    timestamp: Date.now()
+                };
+                if (this.index < this.history.length - 1) {
+                    this.history = this.history.slice(0, this.index + 1);
+                }
+                this.history.push(JSON.stringify(state));
+                if (this.history.length > this.maxHistory) this.history.shift();
+                else this.index++;
+                idb.put('latest', state).then(() => {
+                    const el = document.getElementById('saveStatus');
+                    if (el) { el.innerText = '已保存'; setTimeout(() => el.innerText = '已就绪', 2000); }
+                }).catch(e => console.error('AutoSave failed', e));
+            }
+            async loadState(stateObj) {
+                this.locked = true;
+                try {
+                    const g = stateObj.global;
+                    rawPoints = g.rawPoints || [];
+                    simplifiedPoints = g.simplifiedPoints || [];
+                    trackBounds = g.trackBounds || {};
+                    trackStats = g.trackStats || {};
+
+                    await new Promise(resolve => {
+                        canvas.loadFromJSON(stateObj.canvas, () => {
+                            // 加载完成后，检查是否有背景图片需要恢复
+                            const bgObj = canvas.getObjects().find(o => o.type === 'image' && o.selectable === false);
+                            if (bgObj && bgObj.originalSrc) {
+                                // 如果有保存的原始图片数据，重新加载图片以确保正确显示
+                                fabric.Image.fromURL(bgObj.originalSrc, (newImg) => {
+                                    // 保持原有的属性
+                                    newImg.set({
+                                        left: bgObj.left,
+                                        top: bgObj.top,
+                                        scaleX: bgObj.scaleX,
+                                        scaleY: bgObj.scaleY,
+                                        angle: bgObj.angle,
+                                        selectable: false,
+                                        evented: false,
+                                        originalSrc: bgObj.originalSrc
+                                    });
+
+                                    // 移除旧的图片对象，添加新的
+                                    canvas.remove(bgObj);
+                                    canvas.add(newImg);
+                                    canvas.sendToBack(newImg);
+                                    bgImage = newImg;
+                                    canvas.requestRenderAll();
+
+                                    // 标记需要自动居中，在 initFromDB 中会处理
+                                    newImg._needsAutoCenter = true;
+
+                                    resolve();
+                                }, { crossOrigin: 'anonymous' });
+                            } else {
+                                bgImage = bgObj || null;
+                                if (bgImage) canvas.sendToBack(bgImage);
+                                resolve();
+                            }
+                        });
+                    });
+
+                    canvas.requestRenderAll();
+                } finally {
+                    this.locked = false;
+                }
+            }
+            undo() {
+                if (this.index > 0) {
+                    this.index--;
+                    const state = JSON.parse(this.history[this.index]);
+                    this.loadState(state);
+                    showToast("撤销");
+                }
+            }
+            redo() {
+                if (this.index < this.history.length - 1) {
+                    this.index++;
+                    const state = JSON.parse(this.history[this.index]);
+                    this.loadState(state);
+                    showToast("重做");
+                }
+            }
+            async initFromDB() {
+                try {
+                    const state = await idb.get('latest');
+                    if (state) {
+                        await this.loadState(state);
+                        this.history = [JSON.stringify(state)];
+                        this.index = 0;
+
+                        // 如果有背景图片，自动居中显示
+                        if (bgImage) {
+                            setTimeout(() => {
+                                // 检查是否需要自动居中：
+                                // 1. 图片标记了需要自动居中（HEIC等重新加载的情况）
+                                // 2. 图片没有被缩放过（首次加载或默认状态）
+                                const needsAutoCenter = bgImage._needsAutoCenter ||
+                                                      !bgImage.scaleX ||
+                                                      (bgImage.scaleX === 1 && bgImage.scaleY === 1 && bgImage.left === 0 && bgImage.top === 0);
+
+                                if (needsAutoCenter) {
+                                    fitView();
+                                    showToast("已恢复上次编辑并自动居中");
+                                } else {
+                                    showToast("已恢复上次编辑");
+                                }
+
+                                // 清除标记
+                                if (bgImage._needsAutoCenter) {
+                                    delete bgImage._needsAutoCenter;
+                                }
+                            }, 150); // 稍微延迟确保图片完全加载
+                        } else {
+                            showToast("已恢复上次编辑");
+                        }
+                    } else {
+                        this.save();
+                    }
+                } catch (e) { console.error("Load from DB failed", e); }
+            }
+        }
+
+        const canvas = new fabric.Canvas('c', {
+            preserveObjectStacking: true, selection: true, backgroundColor: null, controlsAboveOverlay: true, uniScaleTransform: true,
+            centeredScaling: false, centeredKey: 'ctrlKey', fireRightClick: true, stopContextMenu: true
+        });
+
+        let rawPoints = [], simplifiedPoints = [];
+        let trackBounds = {}, trackStats = {};
+        let bgImage = null;
+        const historyManager = new HistoryManager();
+        let selectionHistory = [];
+        let _clipboard = null;
+        let isInternalUpdate = false;
+
+        const el = (id) => document.getElementById(id);
+        const wrapper = el('canvasWrapper');
+
+        function showToast(msg) {
+            const t = el('toast');
+            t.innerText = msg;
+            t.className = "show";
+            setTimeout(function () { t.className = t.className.replace("show", ""); }, 3000);
+        }
+
+        function resizeCanvas() {
+            canvas.setWidth(wrapper.clientWidth);
+            canvas.setHeight(wrapper.clientHeight);
+            canvas.requestRenderAll();
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function fitView() {
+            if (!bgImage) return;
+            const p = 50, aw = canvas.getWidth() - p * 2, ah = canvas.getHeight() - p * 2;
+            const s = Math.min(aw / bgImage.width, ah / bgImage.height);
+            const vx = canvas.getWidth() / 2 - (bgImage.width * s) / 2, vy = canvas.getHeight() / 2 - (bgImage.height * s) / 2;
+            canvas.setViewportTransform([s, 0, 0, s, vx, vy]);
+            canvas.requestRenderAll();
+            historyManager.save();
+        }
+
+        function zoomIn() {
+            const center = { x: canvas.getWidth() / 2, y: canvas.getHeight() / 2 };
+            let zoom = canvas.getZoom();
+            zoom = zoom * 1.2;
+            if (zoom > 20) zoom = 20;
+            canvas.zoomToPoint(center, zoom);
+            canvas.requestRenderAll();
+            clearTimeout(window.zoomSaveTimer);
+            window.zoomSaveTimer = setTimeout(() => historyManager.save(), 500);
+            updateFloatMenuPosition();
+        }
+
+        function zoomOut() {
+            const center = { x: canvas.getWidth() / 2, y: canvas.getHeight() / 2 };
+            let zoom = canvas.getZoom();
+            zoom = zoom * 0.8;
+            if (zoom < 0.01) zoom = 0.01;
+            canvas.zoomToPoint(center, zoom);
+            canvas.requestRenderAll();
+            clearTimeout(window.zoomSaveTimer);
+            window.zoomSaveTimer = setTimeout(() => historyManager.save(), 500);
+            updateFloatMenuPosition();
+        }
+
+        canvas.on('mouse:wheel', opt => {
+            let z = canvas.getZoom() * 0.999 ** opt.e.deltaY;
+            if (z > 20) z = 20; if (z < 0.01) z = 0.01;
+            canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, z);
+            opt.e.preventDefault(); opt.e.stopPropagation();
+            clearTimeout(window.zoomSaveTimer);
+            window.zoomSaveTimer = setTimeout(() => historyManager.save(), 500);
+            updateFloatMenuPosition();
+        });
+        let isPanning = false, lastX, lastY;
+        let selStartX = 0;
+        let isBoxSelecting = false;
+
+        canvas.on('mouse:down', function (opt) {
+            if (isPanning || opt.target) return;
+            const pointer = canvas.getPointer(opt.e);
+            selStartX = pointer.x;
+            isBoxSelecting = true;
+        });
+
+        canvas.on('mouse:move', function (opt) {
+            if (!isBoxSelecting) return;
+            const pointer = canvas.getPointer(opt.e);
+            const currentX = pointer.x;
+            if (currentX < selStartX) {
+                canvas.selectionFullyContained = false;
+                canvas.selectionDashArray = [5, 5];
+            } else {
+                canvas.selectionFullyContained = true;
+                canvas.selectionDashArray = null;
+            }
+            canvas.requestRenderAll();
+        });
+
+        canvas.on('mouse:up', function () {
+            isBoxSelecting = false;
+            canvas.selectionFullyContained = false;
+            canvas.selectionDashArray = null;
+        });
+
+        el('bgInput').addEventListener('change', async e => {
+            const f = e.target.files[0]; if (!f) return;
+
+            // 检查是否为 HEIC 格式
+            const isHeic = f.type === 'image/heic' || f.type === 'image/heif' ||
+                          f.name.toLowerCase().endsWith('.heic') || f.name.toLowerCase().endsWith('.heif');
+
+            let imageDataUrl;
+
+            if (isHeic) {
+                if (typeof heic2any === 'undefined') {
+                    showToast('HEIC 库未加载，请检查网络连接或刷新页面');
+                    e.target.value = '';
+                    return;
+                }
+                try {
+                    showToast('正在转换 HEIC 格式...');
+                    // 转换 HEIC 为 JPEG
+                    const convertedBlob = await heic2any({
+                        blob: f,
+                        toType: 'image/jpeg',
+                        quality: 0.9
+                    });
+
+                    // 将 Blob 转换为 Data URL，确保可以持久化保存
+                    imageDataUrl = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = ev => resolve(ev.target.result);
+                        reader.readAsDataURL(convertedBlob);
+                    });
+                    showToast('HEIC 转换完成');
+                } catch (err) {
+                    console.error('HEIC 转换失败:', err);
+                    showToast('HEIC 转换失败，请尝试其他格式');
+                    e.target.value = '';
+                    return;
+                }
+            } else {
+                // 普通格式，使用 FileReader
+                imageDataUrl = await new Promise((resolve) => {
+                    const r = new FileReader();
+                    r.onload = ev => resolve(ev.target.result);
+                    r.readAsDataURL(f);
+                });
+            }
+
+            fabric.Image.fromURL(imageDataUrl, img => {
+                if (bgImage) canvas.remove(bgImage);
+                bgImage = img;
+                // 保存原始图片数据到对象中，用于持久化
+                bgImage.originalSrc = imageDataUrl;
+                bgImage.set({ selectable: false, evented: false, left: 0, top: 0 });
+                canvas.add(bgImage);
+                canvas.sendToBack(bgImage);
+                fitView();
+                if (simplifiedPoints.length > 0) { renderTrackGeometry(true); }
+                LayoutManager.autoApply();
+                historyManager.save();
+            });
+            e.target.value = '';
+        });
+
+        function parseTrack(txt) {
+            const pts = [];
+            const dp = new DOMParser();
+            const xml = dp.parseFromString(txt, "text/xml");
+            const gpxPts = [...xml.getElementsByTagName('trkpt'), ...xml.getElementsByTagName('rtept')];
+            if (gpxPts.length > 0) {
+                gpxPts.forEach(p => {
+                    const eleNode = p.getElementsByTagName('ele')[0];
+                    const timeNode = p.getElementsByTagName('time')[0];
+                    pts.push({
+                        lat: parseFloat(p.getAttribute('lat')),
+                        lon: parseFloat(p.getAttribute('lon')),
+                        ele: eleNode ? parseFloat(eleNode.textContent) : 0,
+                        time: timeNode ? new Date(timeNode.textContent).getTime() : 0
+                    });
+                });
+                return pts;
+            }
+            const lineStrings = xml.getElementsByTagName('LineString');
+            if (lineStrings.length > 0) {
+                for (let i = 0; i < lineStrings.length; i++) {
+                    const coordNode = lineStrings[i].getElementsByTagName('coordinates')[0];
+                    if (coordNode) {
+                        const rawPts = coordNode.textContent.trim().split(/\s+/);
+                        rawPts.forEach(ptStr => {
+                            const coords = ptStr.split(',');
+                            if (coords.length >= 2) {
+                                pts.push({ lon: parseFloat(coords[0]), lat: parseFloat(coords[1]), ele: parseFloat(coords[2]) || 0, time: 0 });
+                            }
+                        });
+                    }
+                }
+            }
+            const gxTracks = xml.getElementsByTagName('gx:Track');
+            if (gxTracks.length > 0) {
+                const coords = gxTracks[0].getElementsByTagName('gx:coord');
+                const whens = gxTracks[0].getElementsByTagName('when');
+                for (let i = 0; i < coords.length; i++) {
+                    const c = coords[i].textContent.trim().split(' ');
+                    const t = whens[i] ? new Date(whens[i].textContent).getTime() : 0;
+                    if (c.length >= 2) {
+                        pts.push({ lon: parseFloat(c[0]), lat: parseFloat(c[1]), ele: parseFloat(c[2]) || 0, time: t });
+                    }
+                }
+                return pts;
+            }
+            if (pts.length === 0) {
+                const allCoords = xml.getElementsByTagName('coordinates');
+                if (allCoords.length > 0) {
+                    for (let i = 0; i < allCoords.length; i++) {
+                        const rawPts = allCoords[i].textContent.trim().split(/\s+/);
+                        rawPts.forEach(ptStr => { const c = ptStr.split(','); if (c.length >= 2) pts.push({ lon: +c[0], lat: +c[1], ele: +c[2] || 0, time: 0 }); });
+                    }
+                }
+            }
+            if (pts.length === 0) {
+                const r = /(-?\d{1,3}\.\d+)[,\s]+(-?\d{1,3}\.\d+)/g;
+                let m;
+                while ((m = r.exec(txt)) !== null) pts.push({ lon: +m[1], lat: +m[2], ele: 0, time: 0 });
+            }
+            return pts;
+        }
+
+        function getDist(p1, p2) { return 6371e3 * 2 * Math.atan2(Math.sqrt(Math.sin((p2.lat - p1.lat) * Math.PI / 360) ** 2 + Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) * Math.sin((p2.lon - p1.lon) * Math.PI / 360) ** 2), Math.sqrt(1)); }
+        function simplify(pts, tol) { if (pts.length < 3) return pts; const r = [pts[0]]; let p = pts[0]; const t = tol * tol; for (let i = 1; i < pts.length; i++) { if ((pts[i].lat - p.lat) ** 2 + (pts[i].lon - p.lon) ** 2 > t) { r.push(pts[i]); p = pts[i]; } } r.push(pts[pts.length - 1]); return r; }
+
+        function formatTime(ms) {
+            if (!ms || isNaN(ms)) return "0h0m";
+            const totalMin = Math.floor(ms / 60000);
+            const h = Math.floor(totalMin / 60);
+            const m = totalMin % 60;
+            return `${h}:${m}`;
+        }
+
+        el('trackInput').addEventListener('change', async e => {
+            const f = e.target.files[0]; if (!f) return;
+            const old = canvas.getObjects().find(o => o.id === 'track_group'); if (old) canvas.remove(old);
+            const txt = await f.text();
+            let duration = 0;
+            const metaMatch = txt.match(/<TimeUsed>(\d+)<\/TimeUsed>/) || txt.match(/<Data name="TimeUsed">\s*<value>(\d+)<\/value>/);
+            if (metaMatch && metaMatch[1]) duration = parseInt(metaMatch[1]);
+            rawPoints = parseTrack(txt);
+            if (rawPoints.length < 2) return alert("解析失败或轨迹点太少");
+            let d = 0, g = 0, l = 0, maxE = -1e5, minE = 1e5, maxLat = -90, minLat = 90, maxLon = -180, minLon = 180;
+            rawPoints.forEach((p, i) => {
+                if (p.lat > maxLat) maxLat = p.lat; if (p.lat < minLat) minLat = p.lat;
+                if (p.lon > maxLon) maxLon = p.lon; if (p.lon < minLon) minLon = p.lon;
+                if (p.ele > maxE) maxE = p.ele; if (p.ele < minE) minE = p.ele;
+                if (i > 0) { d += getDist(rawPoints[i - 1], p); const dh = p.ele - rawPoints[i - 1].ele; if (dh > 0) g += dh; else l += -dh; }
+            });
+            if (minE > 10000 || minE < -500) minE = 0;
+            if (!duration && rawPoints.length > 0) {
+                const timedPoints = rawPoints.filter(p => p.time > 0);
+                if (timedPoints.length > 1) duration = timedPoints[timedPoints.length - 1].time - timedPoints[0].time;
+            }
+            if (!duration) duration = (d / 4000) * 3600 * 1000;
+            trackBounds = { maxLat, minLat, maxLon, minLon, maxE, minE };
+            trackStats = { dist: (d / 1000).toFixed(2), gain: Math.round(g), loss: Math.round(l), maxEle: Math.round(maxE), minEle: Math.round(minE), time: formatTime(duration) };
+            simplifiedPoints = simplify(rawPoints, (maxLat - minLat) / 3000);
+            renderTrackGeometry(true);
+            LayoutManager.autoApply();
+            historyManager.save();
+            e.target.value = '';
+        });
+
+        function renderTrackGeometry(isReset = false) {
+            const old = canvas.getObjects().find(o => o.id === 'track_group');
+            let oldState = null;
+            if (old && !isReset) {
+                oldState = { left: old.left, top: old.top, scaleX: old.scaleX, scaleY: old.scaleY, angle: old.angle, originX: old.originX, originY: old.originY };
+                canvas.remove(old);
+            } else if (old) { canvas.remove(old); }
+            const refW = bgImage ? bgImage.width : canvas.getWidth();
+            const refH = bgImage ? bgImage.height : canvas.getHeight();
+            const baseSize = 1000;
+            const latSpan = trackBounds.maxLat - trackBounds.minLat || 0.001;
+            const lonSpan = trackBounds.maxLon - trackBounds.minLon || 0.001;
+            const geoScale = Math.min(baseSize / lonSpan, baseSize / latSpan);
+            const project = (lat, lon) => { return { x: (lon - trackBounds.minLon) * geoScale, y: (trackBounds.maxLat - lat) * geoScale }; };
+            const width = +el('strokeWidth').value;
+            const pSize = +el('pointSize').value;
+            const mode = el('colorMode').value;
+            const color = el('trackSolidColor').value;
+            const objs = [];
+            if (mode === 'solid') {
+                const points = simplifiedPoints.map(p => project(p.lat, p.lon));
+                objs.push(new fabric.Polyline(points, { stroke: color, strokeWidth: width, fill: 'transparent', strokeLineCap: 'round', strokeLineJoin: 'round', originX: 'center', originY: 'center' }));
+            } else {
+                for (let i = 0; i < simplifiedPoints.length - 1; i++) {
+                    const p1 = simplifiedPoints[i], p2 = simplifiedPoints[i + 1];
+                    const xy1 = project(p1.lat, p1.lon), xy2 = project(p2.lat, p2.lon);
+                    const hue = 120 - (((p1.ele + p2.ele) / 2 - trackBounds.minE) / (trackBounds.maxE - trackBounds.minE || 1)) * 120;
+                    objs.push(new fabric.Line([xy1.x, xy1.y, xy2.x, xy2.y], { stroke: `hsl(${hue},100%,50%)`, strokeWidth: width, strokeLineCap: 'round', originX: 'center', originY: 'center' }));
+                }
+            }
+            if (pSize > 0) {
+                const s = project(simplifiedPoints[0].lat, simplifiedPoints[0].lon);
+                const e = project(simplifiedPoints.at(-1).lat, simplifiedPoints.at(-1).lon);
+                const mkPt = (xy, t, c) => new fabric.Group([
+                    new fabric.Circle({ radius: pSize, fill: c, stroke: '#fff', strokeWidth: pSize * 0.2, originX: 'center', originY: 'center', left: 0, top: 0 }),
+                    new fabric.Text(t, { fontSize: pSize, fill: '#fff', fontFamily: 'DingTalk JinBuTi', originX: 'center', originY: 'center', left: 0, top: 0 })
+                ], { left: xy.x, top: xy.y, originX: 'center', originY: 'center' });
+                objs.push(mkPt(s, '起', '#10b981'), mkPt(e, '终', '#ef4444'));
+            }
+            const group = new fabric.Group(objs, { id: 'track_group', originX: 'center', originY: 'center', shadow: { color: 'rgba(0,0,0,0.5)', blur: 10, offsetX: 5, offsetY: 5 } });
+            if (isReset || !oldState) {
+                const safePadding = 0.1;//轨迹的安全边距
+                const safeW = refW * (1 - safePadding * 2);
+                const safeH = refH * (1 - safePadding * 2);
+                const gRect = group.getBoundingRect();
+                const scaleX = safeW / gRect.width;
+                const scaleY = safeH / gRect.height;
+                const finalScale = Math.min(scaleX, scaleY);
+                group.set({ scaleX: finalScale, scaleY: finalScale, left: refW / 2, top: refH / 2 });
+            } else {
+                group.set(oldState);
+            }
+            canvas.add(group);
+            if (bgImage) group.moveTo(1);
+            canvas.requestRenderAll();
+        }
+
+        function toggleLayoutMenu() {
+            const menu = document.getElementById('layoutMenu');
+            const btn = document.getElementById('layoutBtn');
+            if (menu.classList.contains('hidden')) {
+                menu.classList.remove('hidden');
+                setTimeout(() => { menu.classList.remove('scale-95', 'opacity-0'); menu.classList.add('scale-100', 'opacity-100'); }, 10);
+                btn.classList.add('text-green-400');
+                LayoutManager.renderMenu();
+            } else {
+                menu.classList.remove('scale-100', 'opacity-100'); menu.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => { menu.classList.add('hidden'); }, 200);
+                btn.classList.remove('text-green-400');
+            }
+        }
+
+        function createStatItem(text, type, x, y, options = {}) {
+            const refW = bgImage ? bgImage.width : canvas.getWidth();
+            const baseSize = options.fontSize || (type === 'val' ? refW / 25 * 2 : refW / 25 * 0.7);
+            return new fabric.IText(text.toString(), {
+                left: x, top: y, fontSize: baseSize, fontFamily: 'DingTalk JinBuTi', fontWeight: type === 'val' ? '900' : '400', lineHeight: type === 'val' ? 0.9 : 1.0,
+                paintFirst: 'stroke', fill: type === 'val' ? '#ffffff' : '#cccccc', originX: options.originX || 'center', originY: options.originY || (type === 'val' ? 'bottom' : 'top'),
+                textAlign: 'center', shadow: { color: 'rgba(0,0,0,0.8)', blur: 4, offsetX: 2, offsetY: 2 }, isStat: true, statType: type, statKey: options.key, ...options
+            });
+        }
+
+        const LayoutManager = {
+            // 渲染菜单列表 (保持不变)
+            renderMenu() {
+                const sysList = document.getElementById('systemLayoutList');
+                const userList = document.getElementById('userLayoutList');
+                const userCount = document.getElementById('userLayoutCount');
+
+                // 1. 渲染系统默认
+                sysList.innerHTML = `
+                    <div onclick="LayoutManager.applySystemLayout('horizontal')" class="cursor-pointer hover:bg-white/10 p-2 rounded flex items-center gap-2 group transition">
+                        <div class="w-8 h-5 border border-slate-500 rounded flex items-center justify-between p-0.5 group-hover:border-blue-400 bg-slate-800 relative">
+                            <div class="absolute top-1 left-1 w-3 h-2 bg-slate-500 rounded-sm group-hover:bg-blue-400"></div><div class="absolute bottom-0.5 left-1 w-6 h-0.5 bg-slate-600"></div>
+                        </div><span class="text-xs">横屏</span>
+                    </div>
+                    <div onclick="LayoutManager.applySystemLayout('vertical')" class="cursor-pointer hover:bg-white/10 p-2 rounded flex items-center gap-2 group transition">
+                        <div class="w-6 h-8 border border-slate-500 rounded flex flex-col p-0.5 group-hover:border-blue-400 bg-slate-800 relative">
+                            <div class="absolute top-1 left-1 w-2 h-2 bg-slate-500 rounded-full group-hover:bg-blue-400"></div><div class="absolute bottom-1 left-1 w-4 h-0.5 bg-slate-600"></div>
+                        </div><span class="text-xs">竖屏</span>
+                    </div>`;
+
+                // 2. 渲染用户自定义
+                const userLayouts = JSON.parse(localStorage.getItem('tracko_user_layouts') || '[]');
+                userCount.innerText = userLayouts.length;
+
+                if (userLayouts.length === 0) {
+                    userList.innerHTML = '';
+                    return;
+                }
+
+                userList.innerHTML = userLayouts.map((l, i) => {
+                    const isVertical = l.orientation === 'vertical';
+                    const iconHtml = isVertical
+                        ? `<div class="w-6 h-8 border border-pink-500/50 rounded flex flex-col p-0.5 bg-pink-500/10 relative shrink-0 group-hover:border-pink-400 transition"><div class="absolute top-1 left-1 w-2 h-2 bg-pink-500/80 rounded-full group-hover:bg-pink-400"></div><div class="absolute bottom-1 left-1 w-4 h-0.5 bg-pink-500/50"></div></div>`
+                        : `<div class="w-8 h-5 border border-pink-500/50 rounded flex items-center justify-between p-0.5 bg-pink-500/10 relative shrink-0 group-hover:border-pink-400 transition"><div class="absolute top-1 left-1 w-3 h-2 bg-pink-500/80 rounded-sm group-hover:bg-pink-400"></div><div class="absolute bottom-0.5 left-1 w-6 h-0.5 bg-pink-500/50"></div></div>`;
+
+                    return `
+                    <div class="flex items-center justify-between hover:bg-white/10 p-2 rounded group transition cursor-pointer" onclick="LayoutManager.applyUserLayout(${i})">
+                        <div class="flex items-center gap-2 overflow-hidden">
+                            ${iconHtml}
+                            <span class="text-xs truncate text-slate-300 group-hover:text-white transition select-none">${l.name}</span>
+                        </div>
+                        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                            <button onclick="event.stopPropagation(); LayoutManager.updateUserLayout(${i})" title="更新为当前画面排版" class="text-slate-500 hover:text-blue-400 px-1 py-1">
+                                <i class="fa-solid fa-arrows-rotate"></i>
+                            </button>
+                            <button onclick="event.stopPropagation(); LayoutManager.deleteUserLayout(${i})" title="删除" class="text-slate-500 hover:text-red-400 px-1 py-1">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>`;
+                }).join('');
+            },
+
+            // 智能识别入口
+            autoApply() {
+                if (!bgImage) return;
+                if (bgImage.width > bgImage.height) { this.applySystemLayout('horizontal'); } else { this.applySystemLayout('vertical'); }
+            },
+
+            // 应用系统预设 (保持之前修改的 10% 边距)
+            applySystemLayout(type) {
+                canvas.getObjects().filter(o => o.isStat).forEach(o => canvas.remove(o));
+                const refW = bgImage ? bgImage.width : canvas.getWidth();
+                const refH = bgImage ? bgImage.height : canvas.getHeight();
+
+                // 统一的2行3列布局
+                // 第一行：总里程(km)、全程耗时、累计爬升(m)
+                // 第二行：最高海拔(m)、最低海拔(m)、累计下降(m)
+
+                // 根据横竖屏调整布局 isHorizontal 为 true 时为横屏，false 时为竖屏
+                const isHorizontal = type === 'horizontal';
+
+                // 布局参数
+                const startX = refW * 0.15;  // 起始X位置
+                const endX = refW * 0.85;    // 结束X位置
+                const colGap = (endX - startX) / 2;  // 列间距（3列=2个间隔）
+
+                // 根据横竖屏调整行位置和字体大小，参考原始布局的参数
+                const row1Y = isHorizontal ? refH * 0.78 : refH * 0.78;
+                const row2Y = isHorizontal ? refH * 0.92 : refH * 0.92;
+                const valFontSize = isHorizontal ? refW * 0.08 : refW * 0.11;
+                const lblFontSize = isHorizontal ? refW * 0.03 : refW * 0.035;
+
+                // 第一行数据
+                const row1Items = [
+                    { k: 'dist', l: '总里程(km)', v: trackStats.dist },
+                    { k: 'time', l: '全程耗时', v: trackStats.time },
+                    { k: 'gain', l: '累计爬升(m)', v: trackStats.gain }
+                ];
+
+                // 第二行数据
+                const row2Items = [
+                    { k: 'maxEle', l: '最高海拔(m)', v: trackStats.maxEle },
+                    { k: 'minEle', l: '最低海拔(m)', v: trackStats.minEle },
+                    { k: 'loss', l: '累计下降(m)', v: trackStats.loss }
+                ];
+
+                // 渲染第一行
+                row1Items.forEach((d, i) => {
+                    const cx = startX + (i * colGap);
+                    canvas.add(createStatItem(d.v, 'val', cx, row1Y, { fontSize: valFontSize, originX: 'center', originY: 'bottom', key: d.k }));
+                    canvas.add(createStatItem(d.l, 'label', cx, row1Y + 5, { fontSize: lblFontSize, originX: 'center', originY: 'top', key: d.k + '_lbl', fill: '#cccccc', fontWeight: 'bold' }));
+                });
+
+                // 渲染第二行
+                row2Items.forEach((d, i) => {
+                    const cx = startX + (i * colGap);
+                    canvas.add(createStatItem(d.v, 'val', cx, row2Y, { fontSize: valFontSize, originX: 'center', originY: 'bottom', key: d.k }));
+                    canvas.add(createStatItem(d.l, 'label', cx, row2Y + 5, { fontSize: lblFontSize, originX: 'center', originY: 'top', key: d.k + '_lbl', fill: '#cccccc', fontWeight: 'bold' }));
+                });
+
+                // 添加标题
+                const titleY = isHorizontal ? refH * 0.3 : refH * 0.3;
+                const titleFontSize = isHorizontal ? refW * 0.06 : refW * 0.07;
+                canvas.add(new fabric.IText("双击修改标题", {
+                    left: refW / 2,
+                    top: titleY,
+                    fontSize: titleFontSize,
+                    fontFamily: 'DingTalk JinBuTi',
+                    fontWeight: 'bold',
+                    fill: '#ffffff',
+                    originX: 'center',
+                    originY: 'center',
+                    isStat: true,
+                    statKey: 'title',
+                    shadow: { color: 'rgba(0,0,0,0.8)', blur: 8 }
+                }));
+
+                canvas.requestRenderAll();
+                historyManager.save();
+            },
+
+            // --- 核心修改：保存时计算描边比例 ---
+            getCurrentLayoutData(name) {
+                const stats = canvas.getObjects().filter(o => o.isStat);
+                if (stats.length === 0) return null;
+
+                const refW = bgImage ? bgImage.width : canvas.getWidth();
+                const refH = bgImage ? bgImage.height : canvas.getHeight();
+                const orientation = refW > refH ? 'horizontal' : 'vertical';
+
+                return {
+                    name: name,
+                    orientation: orientation,
+                    items: stats.map(o => ({
+                        statKey: o.statKey,
+                        text: o.text,
+                        relX: o.left / refW,
+                        relY: o.top / refH,
+                        relFontSize: o.fontSize / refW,
+                        // --- 关键修改：保存描边宽度相对于画布宽度的比例 ---
+                        relStrokeWidth: (o.strokeWidth || 0) / refW,
+                        // ------------------------------------------
+                        props: {
+                            fill: o.fill,
+                            fontWeight: o.fontWeight,
+                            originX: o.originX,
+                            originY: o.originY,
+                            textAlign: o.textAlign,
+                            fontStyle: o.fontStyle,
+                            shadow: o.shadow,
+                            stroke: o.stroke,
+                            strokeWidth: o.strokeWidth // 保留旧值作为兼容
+                        }
+                    }))
+                };
+            },
+
+            saveUserLayout() {
+                const nameInput = document.getElementById('layoutNameInput');
+                const name = nameInput.value.trim() || `样式 ${new Date().toLocaleTimeString()}`;
+
+                const layoutData = this.getCurrentLayoutData(name);
+                if (!layoutData) return showToast("画布为空，无法保存");
+
+                const layouts = JSON.parse(localStorage.getItem('tracko_user_layouts') || '[]');
+                layouts.push(layoutData);
+                localStorage.setItem('tracko_user_layouts', JSON.stringify(layouts));
+
+                showToast("样式已保存");
+                nameInput.value = '';
+                this.renderMenu();
+            },
+
+            updateUserLayout(index) {
+                const layouts = JSON.parse(localStorage.getItem('tracko_user_layouts') || '[]');
+                const targetLayout = layouts[index];
+
+                if (!targetLayout) return;
+
+                if (!confirm(`确定要用当前画面覆盖样式 "${targetLayout.name}" 吗？`)) return;
+
+                const newData = this.getCurrentLayoutData(targetLayout.name);
+                if (!newData) return showToast("画布为空，无法更新");
+
+                layouts[index] = newData;
+                localStorage.setItem('tracko_user_layouts', JSON.stringify(layouts));
+
+                showToast(`样式 "${targetLayout.name}" 已更新`);
+                this.renderMenu();
+            },
+
+            applyUserLayout(index) {
+                const layouts = JSON.parse(localStorage.getItem('tracko_user_layouts') || '[]');
+                const layout = layouts[index];
+                if (!layout) return;
+
+                canvas.getObjects().filter(o => o.isStat).forEach(o => canvas.remove(o));
+
+                const refW = bgImage ? bgImage.width : canvas.getWidth();
+                const refH = bgImage ? bgImage.height : canvas.getHeight();
+
+                layout.items.forEach(item => {
+                    let text = item.text;
+                    if (item.statKey && trackStats[item.statKey]) { text = trackStats[item.statKey]; }
+
+                    // --- 计算响应式描边 ---
+                    let appliedStrokeWidth = item.props.strokeWidth; // 默认为旧数据
+
+                    // 如果存在新的比例数据，则优先使用比例计算
+                    if (item.relStrokeWidth !== undefined && item.relStrokeWidth !== null) {
+                        appliedStrokeWidth = item.relStrokeWidth * refW;
+
+                        // 边界保护：如果算出来太细小于0.5且原本有描边，则至少给0.5
+                        if (appliedStrokeWidth < 0.5 && item.relStrokeWidth > 0) {
+                            appliedStrokeWidth = 0.5;
+                        }
+                    }
+                    // ---------------------
+
+                    const obj = new fabric.IText(text.toString(), {
+                        ...item.props,
+                        left: item.relX * refW,
+                        top: item.relY * refH,
+                        fontSize: item.relFontSize * refW,
+                        strokeWidth: appliedStrokeWidth,
+                        fontFamily: 'DingTalk JinBuTi',
+                        isStat: true,
+                        statKey: item.statKey
+                    });
+                    canvas.add(obj);
+                });
+
+                canvas.requestRenderAll();
+                historyManager.save();
+                showToast(`已应用：${layout.name}`);
+            },
+
+            deleteUserLayout(index) {
+                if (!confirm("确定删除该样式吗？")) return;
+                const layouts = JSON.parse(localStorage.getItem('tracko_user_layouts') || '[]');
+                layouts.splice(index, 1);
+                localStorage.setItem('tracko_user_layouts', JSON.stringify(layouts));
+                this.renderMenu();
+            }
+        };
+
+        function setStyle(prop, val, shouldSave = true) {
+            let changed = false;
+            canvas.getActiveObjects().forEach(o => {
+                if (prop === 'fill' && (o.type === 'i-text' || o.type === 'text' || o.type === 'circle')) { o.set('fill', val); changed = true; }
+                else if (prop === 'opacity') { o.set('opacity', parseFloat(val)); changed = true; }
+                else if (prop === 'fontWeight') { o.set('fontWeight', val); changed = true; }
+                else if (prop === 'fontStyle') { o.set('fontStyle', val); changed = true; }
+                else if (prop === 'underline') { o.set('underline', val); changed = true; }
+                else if (prop === 'shadow') { o.set('shadow', val ? { color: 'rgba(0,0,0,0.8)', blur: 4, offsetX: 2, offsetY: 2 } : null); changed = true; }
+            });
+            if (changed) { canvas.requestRenderAll(); if (shouldSave) historyManager.save(); }
+        }
+
+        canvas.on('selection:cleared', () => { selectionHistory = []; });
+        canvas.on('selection:created', (e) => { if (e.selected) { selectionHistory = [...e.selected]; } });
+        canvas.on('selection:updated', (e) => {
+            if (e.deselected) { selectionHistory = selectionHistory.filter(o => !e.deselected.includes(o)); }
+            if (e.selected) { const newItems = e.selected.filter(o => !selectionHistory.includes(o)); selectionHistory = [...selectionHistory, ...newItems]; }
+        });
+        canvas.on('object:modified', () => historyManager.save());
+        canvas.on('selection:created', updateControls);
+        canvas.on('selection:updated', updateControls);
+        function updateControls() {
+            const active = canvas.getActiveObject(); if (!active) return;
+            if (active.type === 'i-text' || active.type === 'text' || active.type === 'circle') {
+                const elOpacity = document.getElementById('selOpacity');
+                if (elOpacity) elOpacity.value = active.opacity;
+            }
+        }
+        function toggleBtn(id, s) { if (s) el(id).classList.add('active'); else el(id).classList.remove('active'); }
+
+        el('selOpacity').addEventListener('input', e => setStyle('opacity', e.target.value, false));
+        el('selOpacity').addEventListener('change', () => historyManager.save());
+
+        ['strokeWidth', 'pointSize', 'colorMode', 'trackSolidColor'].forEach(id => {
+            const element = el(id);
+            element.addEventListener('input', () => {
+                if (el('colorMode').value === 'solid') el('solidColorRow').classList.remove('hidden'); else el('solidColorRow').classList.add('hidden');
+                if (simplifiedPoints.length) { renderTrackGeometry(false); }
+            });
+            element.addEventListener('change', () => { if (simplifiedPoints.length) { historyManager.save(); } });
+        });
+
+        function addNewText() {
+            const vpt = canvas.viewportTransform, inv = fabric.util.invertTransform(vpt);
+            const center = fabric.util.transformPoint({ x: canvas.getWidth() / 2, y: canvas.getHeight() / 2 }, inv);
+            const size = bgImage ? bgImage.width / 25 : 40;
+            const text = new fabric.IText("文字", {
+                left: center.x, top: center.y, fontSize: size, fontFamily: 'DingTalk JinBuTi', lineHeight: 1.0, paintFirst: 'stroke',
+                fill: '#ffffff', originX: 'center', originY: 'center', textAlign: 'center', shadow: { color: 'rgba(0,0,0,0.8)', blur: 4, offsetX: 2, offsetY: 2 }, isStat: true
+            });
+            canvas.add(text); canvas.setActiveObject(text); canvas.requestRenderAll(); updateControls();
+            historyManager.save();
+        }
+
+        function addMarker() {
+            const vpt = canvas.viewportTransform, inv = fabric.util.invertTransform(vpt);
+            const center = fabric.util.transformPoint({ x: canvas.getWidth() / 2, y: canvas.getHeight() / 2 }, inv);
+            const size = bgImage ? bgImage.width / 50 : 20;
+            const marker = new fabric.Circle({
+                left: center.x, top: center.y, radius: size, fill: '#f97316', stroke: '#ffffff', strokeWidth: size * 0.2,
+                originX: 'center', originY: 'center', shadow: { color: 'rgba(0,0,0,0.5)', blur: 10, offsetX: 5, offsetY: 5 }
+            });
+            canvas.add(marker); canvas.setActiveObject(marker); canvas.requestRenderAll(); updateControls();
+            historyManager.save();
+        }
+
+        function deleteSelected() {
+            const act = canvas.getActiveObjects();
+            if (act.length) { canvas.discardActiveObject(); act.forEach(o => canvas.remove(o)); canvas.requestRenderAll(); historyManager.save(); }
+        }
+
+        window.addEventListener('keydown', e => {
+            if ((e.key === 'Delete' || e.key === 'Backspace') && canvas.getActiveObject() && !canvas.getActiveObject().isEditing) { deleteSelected(); }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) historyManager.redo(); else historyManager.undo(); }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); historyManager.redo(); }
+        });
+
+        const SNAP_DIST = 10;
+        const GUIDE_COLOR = '#ff00ff';
+        const IMAGE_GUIDE_COLOR = '#ffff00';
+        const GUIDE_WIDTH = 1;
+
+        canvas.on('object:moving', function (e) {
+            const active = e.target;
+            const zoom = canvas.getZoom();
+            let lockX = false; let lockY = false;
+            if (e.e.shiftKey && e.transform && e.transform.original) {
+                const origin = e.transform.original;
+                const currentLeft = active.left;
+                const currentTop = active.top;
+                const dx = Math.abs(currentLeft - origin.left);
+                const dy = Math.abs(currentTop - origin.top);
+                if (dx > dy) { lockY = true; active.set('top', origin.top); } else { lockX = true; active.set('left', origin.left); }
+            }
+            clearGuides();
+            active.setCoords();
+            const aRect = active.getBoundingRect(true);
+            const aMap = { v: [aRect.left, aRect.left + aRect.width / 2, aRect.left + aRect.width], h: [aRect.top, aRect.top + aRect.height / 2, aRect.top + aRect.height] };
+            const candidates = canvas.getObjects().filter(obj => { return obj !== active && obj.id !== 'guide' && obj.visible && obj.evented !== false && (obj === bgImage || obj.selectable); });
+            if (bgImage && !candidates.includes(bgImage)) candidates.push(bgImage);
+            let finalDiffX = null, finalDiffY = null;
+            let minAbsDistX = SNAP_DIST / zoom, minAbsDistY = SNAP_DIST / zoom;
+            let guideX = null, guideY = null;
+            let snapObjX = null, snapObjY = null;
+
+            candidates.forEach(obj => {
+                const rect = obj.getBoundingRect(true);
+                const tMap = { v: [rect.left, rect.left + rect.width / 2, rect.left + rect.width], h: [rect.top, rect.top + rect.height / 2, rect.top + rect.height] };
+                if (!lockX) {
+                    aMap.v.forEach((currX) => {
+                        tMap.v.forEach((targetX) => {
+                            const diff = targetX - currX;
+                            const absDiff = Math.abs(diff);
+                            if (absDiff < minAbsDistX) { minAbsDistX = absDiff; finalDiffX = diff; guideX = targetX; snapObjX = obj; }
+                        });
+                    });
+                }
+                if (!lockY) {
+                    aMap.h.forEach((currY) => {
+                        tMap.h.forEach((targetY) => {
+                            const diff = targetY - currY;
+                            const absDiff = Math.abs(diff);
+                            if (absDiff < minAbsDistY) { minAbsDistY = absDiff; finalDiffY = diff; guideY = targetY; snapObjY = obj; }
+                        });
+                    });
+                }
+            });
+
+            if (finalDiffX !== null) { active.set('left', active.left + finalDiffX); drawSmartGuide('v', guideX, snapObjX, aRect); }
+            if (finalDiffY !== null) { active.set('top', active.top + finalDiffY); drawSmartGuide('h', guideY, snapObjY, aRect); }
+            if (finalDiffX !== null || finalDiffY !== null) { active.setCoords(); }
+        });
+
+        canvas.on('mouse:up', clearGuides);
+
+        function drawSmartGuide(axis, pos, targetObj, activeRect) {
+            let coords = [];
+            const isImage = targetObj === bgImage || targetObj.type === 'image';
+            const finalColor = isImage ? IMAGE_GUIDE_COLOR : GUIDE_COLOR;
+            if (isImage) {
+                const vpt = canvas.viewportTransform;
+                const inv = fabric.util.invertTransform(vpt);
+                const p1 = fabric.util.transformPoint({ x: 0, y: 0 }, inv);
+                const p2 = fabric.util.transformPoint({ x: canvas.getWidth(), y: canvas.getHeight() }, inv);
+                if (axis === 'v') coords = [pos, p1.y, pos, p2.y]; else coords = [p1.x, pos, p2.x, pos];
+            } else {
+                const targetRect = targetObj.getBoundingRect(true);
+                if (axis === 'v') {
+                    const minY = Math.min(activeRect.top, targetRect.top);
+                    const maxY = Math.max(activeRect.top + activeRect.height, targetRect.top + targetRect.height);
+                    coords = [pos, minY, pos, maxY];
+                } else {
+                    const minX = Math.min(activeRect.left, targetRect.left);
+                    const maxX = Math.max(activeRect.left + activeRect.width, targetRect.left + targetRect.width);
+                    coords = [minX, pos, maxX, pos];
+                }
+            }
+            const line = new fabric.Line(coords, { stroke: finalColor, strokeWidth: GUIDE_WIDTH / canvas.getZoom(), strokeDashArray: [4, 4], selectable: false, evented: false, id: 'guide', opacity: 0.9 });
+            canvas.add(line);
+        }
+
+        function clearGuides() { canvas.getObjects().filter(o => o.id === 'guide').forEach(o => canvas.remove(o)); }
+
+        function toggleModal(show) {
+            const m = el('exportModal');
+            if (show) {
+                m.classList.remove('hidden');
+                // 初始化质量控制
+                setTimeout(() => {
+                    initQualitySlider();
+                    setQuality(90); // 默认90%质量
+                }, 10);
+            } else {
+                m.classList.add('hidden');
+            }
+        }
+        el('downloadBtn').addEventListener('click', () => { toggleModal(true); });
+        // 质量控制相关函数
+        function updateQualityDisplay(value) {
+            document.getElementById('qualityDisplay').textContent = value + '%';
+            // 更新滑块位置 - 从左边开始计算
+            const percentage = (value - 10) / (100 - 10); // 将10-100映射到0-1
+            const thumb = document.getElementById('qualityThumb');
+            if (thumb) {
+                thumb.style.left = (percentage * 100) + '%';
+            }
+        }
+
+        function setQuality(value) {
+            document.getElementById('exportQuality').value = value;
+            updateQualityDisplay(value);
+
+            // 更新预设按钮样式
+            const buttons = document.querySelectorAll('[onclick^="setQuality"]');
+            buttons.forEach(btn => {
+                btn.classList.remove('bg-blue-100', 'text-blue-700');
+                btn.classList.add('bg-slate-200', 'text-slate-700');
+            });
+
+            // 高亮当前选中的预设
+            if (value === 100) {
+                buttons[3].classList.remove('bg-slate-200', 'text-slate-700');
+                buttons[3].classList.add('bg-blue-100', 'text-blue-700');
+            } else if (value === 90) {
+                buttons[2].classList.remove('bg-slate-200', 'text-slate-700');
+                buttons[2].classList.add('bg-blue-100', 'text-blue-700');
+            } else if (value === 80) {
+                buttons[1].classList.remove('bg-slate-200', 'text-slate-700');
+                buttons[1].classList.add('bg-blue-100', 'text-blue-700');
+            } else if (value === 60) {
+                buttons[0].classList.remove('bg-slate-200', 'text-slate-700');
+                buttons[0].classList.add('bg-blue-100', 'text-blue-700');
+            }
+        }
+
+        // 初始化质量滑块拖拽功能（水平滑块）
+        function initQualitySlider() {
+            const container = document.getElementById('qualitySliderContainer');
+            const thumb = document.getElementById('qualityThumb');
+            const input = document.getElementById('exportQuality');
+
+            if (!container || !thumb || !input) return;
+
+            let isDragging = false;
+
+            // 鼠标按下事件
+            thumb.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                e.preventDefault();
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', handleMouseUp);
+            });
+
+            // 点击滑块轨道
+            container.addEventListener('click', (e) => {
+                if (e.target === container) {
+                    const rect = container.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const percentage = x / rect.width; // 左端为0%，右端为100%
+                    const value = Math.round(10 + percentage * (100 - 10));
+                    const clampedValue = Math.max(10, Math.min(100, value));
+                    setQuality(clampedValue);
+                }
+            });
+
+            function handleMouseMove(e) {
+                if (!isDragging) return;
+
+                const rect = container.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const percentage = x / rect.width; // 左端为0%，右端为100%
+                const value = Math.round(10 + percentage * (100 - 10));
+                const clampedValue = Math.max(10, Math.min(100, value));
+
+                setQuality(clampedValue);
+            }
+
+            function handleMouseUp() {
+                isDragging = false;
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+            }
+
+            // 触摸支持
+            thumb.addEventListener('touchstart', (e) => {
+                isDragging = true;
+                e.preventDefault();
+                document.addEventListener('touchmove', handleTouchMove, { passive: false });
+                document.addEventListener('touchend', handleTouchEnd);
+            });
+
+            function handleTouchMove(e) {
+                if (!isDragging) return;
+                e.preventDefault();
+
+                const touch = e.touches[0];
+                const rect = container.getBoundingClientRect();
+                const x = touch.clientX - rect.left;
+                const percentage = x / rect.width;
+                const value = Math.round(10 + percentage * (100 - 10));
+                const clampedValue = Math.max(10, Math.min(100, value));
+
+                setQuality(clampedValue);
+            }
+
+            function handleTouchEnd() {
+                isDragging = false;
+                document.removeEventListener('touchmove', handleTouchMove);
+                document.removeEventListener('touchend', handleTouchEnd);
+            }
+        }
+
+        function executeDownload() {
+            toggleModal(false);
+            canvas.discardActiveObject();
+
+            // 获取导出质量设置
+            const qualityValue = parseInt(document.getElementById('exportQuality').value);
+            const quality = qualityValue / 100;
+            const format = qualityValue === 100 ? 'png' : 'jpeg'; // 100%品质时使用PNG，否则使用JPEG
+
+            const originalVpt = canvas.viewportTransform;
+            const originalWidth = canvas.getWidth();
+            const originalHeight = canvas.getHeight();
+
+            if (bgImage) {
+                canvas.setWidth(bgImage.width);
+                canvas.setHeight(bgImage.height);
+                canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+            } else {
+                canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+            }
+
+            // PNG格式使用无损压缩（quality参数无效），JPEG使用指定质量
+            const exportOptions = {
+                format: format,
+                multiplier: 1
+            };
+            if (format === 'jpeg') {
+                exportOptions.quality = quality;
+            }
+
+            const dataURL = canvas.toDataURL(exportOptions);
+
+            canvas.setWidth(originalWidth);
+            canvas.setHeight(originalHeight);
+            canvas.setViewportTransform(originalVpt);
+            canvas.requestRenderAll();
+
+            const a = document.createElement('a');
+            a.download = `cover_${Date.now()}.${format === 'jpeg' ? 'jpg' : 'png'}`;
+            a.href = dataURL;
+            a.click();
+
+            const formatText = format.toUpperCase();
+            const qualityText = format === 'png' ? '无损品质' : `${qualityValue}% 品质`;
+            showToast(`已导出 ${formatText} 格式 (${qualityText}) 图片`);
+        }
+
+        function resetAll() {
+            if (!confirm("确定要重置所有内容吗？这将清除已上传的底图、轨迹数据以及所有文字和标记。")) {
+                return;
+            }
+
+            // 清除画布上的所有对象
+            canvas.clear();
+
+            // 重置全局变量
+            rawPoints = [];
+            simplifiedPoints = [];
+            trackBounds = {};
+            trackStats = {};
+            bgImage = null;
+
+            // 重置视口变换
+            canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+
+            // 清除选择状态
+            canvas.discardActiveObject();
+            selectionHistory = [];
+
+            // 重置历史记录
+            historyManager.history = [];
+            historyManager.index = -1;
+            historyManager.save();
+
+            // 清除数据库中的自动保存状态
+            idb.put('latest', null).catch(e => console.error('Clear DB failed', e));
+
+            // 隐藏浮动菜单
+            hideFloatMenu();
+
+            // 重新渲染画布
+            canvas.requestRenderAll();
+
+            showToast("已重置所有内容");
+        }
+
+        const floatMenu = document.getElementById('floatingMenu');
+        const alignSubmenu = document.getElementById('ft-align-submenu');
+
+        canvas.on('selection:created', updateFloatMenu);
+        canvas.on('selection:updated', updateFloatMenu);
+        canvas.on('selection:cleared', hideFloatMenu);
+        canvas.on('object:moving', updateFloatMenuPosition);
+        canvas.on('object:scaling', updateFloatMenuPosition);
+        canvas.on('mouse:move', () => { if (isPanning) updateFloatMenuPosition(); });
+
+        function hideFloatMenu() { if (isInternalUpdate) return; if (floatMenu) floatMenu.classList.add('hidden'); if (alignSubmenu) alignSubmenu.classList.add('hidden'); }
+
+        function updateFloatMenu() {
+            const active = canvas.getActiveObject();
+            if (!active) { hideFloatMenu(); return; }
+            floatMenu.classList.remove('hidden');
+            updateFloatMenuPosition();
+            let selectedObjects = [];
+            if (active.type === 'activeSelection') { selectedObjects = active.getObjects(); } else { selectedObjects = [active]; }
+            const hasTrack = selectedObjects.some(o => o.id === 'track_group');
+            const isTrackOnly = hasTrack && selectedObjects.length === 1;
+            const isAllText = !hasTrack && selectedObjects.every(o => o.type === 'i-text' || o.type === 'text');
+            const isAllMarker = !hasTrack && selectedObjects.every(o => o.type === 'circle');
+            const isMulti = active.type === 'activeSelection';
+            const isGroup = active.type === 'group';
+            const textTools = document.getElementById('ft-text-tools');
+            const markerTools = document.getElementById('ft-marker-tools');
+            const trackTools = document.getElementById('ft-track-tools');
+            const multiTools = document.getElementById('ft-multi-tools');
+            const groupBtnText = document.querySelector('#ft-group-btn span');
+            const alignBtn = document.getElementById('ft-align-btn');
+
+            if (isTrackOnly) {
+                trackTools.classList.remove('hidden'); textTools.classList.add('hidden'); markerTools.classList.add('hidden'); multiTools.classList.add('hidden');
+                document.getElementById('ft-track-width').value = document.getElementById('strokeWidth').value;
+                document.getElementById('ft-track-point').value = document.getElementById('pointSize').value;
+                const currentMode = document.getElementById('colorMode').value;
+                document.getElementById('ft-track-mode').value = currentMode;
+                const colorContainer = document.getElementById('ft-track-solid-color-container');
+                if (currentMode === 'solid') { colorContainer.classList.remove('hidden'); } else { colorContainer.classList.add('hidden'); }
+                const solidColor = document.getElementById('trackSolidColor').value;
+                document.getElementById('ft-track-solid-color-preview').style.backgroundColor = solidColor;
+                const trackObj = selectedObjects[0];
+                document.getElementById('ft-track-shadow').classList.toggle('bg-slate-200', !!trackObj.shadow);
+            } else if (isAllText) {
+                trackTools.classList.add('hidden'); markerTools.classList.add('hidden'); textTools.classList.remove('hidden');
+                const ref = selectedObjects[0];
+                document.getElementById('ft-fontSize').value = ref.fontSize || 40;
+                document.getElementById('ft-color-preview').style.backgroundColor = ref.fill;
+                const currentFont = ref.fontFamily;
+                const fontSelect = document.getElementById('ft-fontFamily');
+                fontSelect.value = currentFont;
+                if (!fontSelect.value) {
+                    if (currentFont.includes('DingTalk JinBuTi') || currentFont.includes('钉钉进步体')) fontSelect.value = 'DingTalk JinBuTi';
+                    else if (currentFont.includes('Noto Sans')) fontSelect.value = 'Noto Sans SC';
+                    else if (currentFont.includes('system-ui')) fontSelect.value = 'system-ui';
+                    else fontSelect.value = 'DingTalk JinBuTi'; // 默认使用钉钉进步体
+                }
+                document.getElementById('ft-bold').classList.toggle('bg-slate-200', ref.fontWeight === 'bold');
+                document.getElementById('ft-italic').classList.toggle('bg-slate-200', ref.fontStyle === 'italic');
+                const hasStroke = ref.stroke && ref.strokeWidth > 0;
+                document.getElementById('ft-stroke').classList.toggle('bg-slate-200', hasStroke);
+                document.getElementById('ft-text-stroke-width').value = hasStroke ? ref.strokeWidth : 2;
+                const strokeColor = ref.stroke || '#000000';
+                document.getElementById('ft-text-stroke-preview').style.backgroundColor = strokeColor;
+                document.getElementById('ft-text-shadow').classList.toggle('bg-slate-200', !!ref.shadow);
+                if (selectedObjects.length > 1 || isGroup) {
+                    multiTools.classList.remove('hidden');
+                    if (isGroup) { groupBtnText.innerText = "解组"; alignBtn.classList.add('hidden'); } else { groupBtnText.innerText = "成组"; alignBtn.classList.remove('hidden'); }
+                } else { multiTools.classList.add('hidden'); }
+            } else if (isAllMarker) {
+                trackTools.classList.add('hidden'); textTools.classList.add('hidden'); markerTools.classList.remove('hidden');
+                const ref = selectedObjects[0];
+                document.getElementById('ft-marker-fill-preview').style.backgroundColor = ref.fill;
+                document.getElementById('ft-marker-stroke-preview').style.backgroundColor = ref.stroke;
+                document.getElementById('ft-marker-width').value = ref.strokeWidth || 0;
+                document.getElementById('ft-marker-shadow').classList.toggle('bg-slate-200', !!ref.shadow);
+                if (selectedObjects.length > 1 || isGroup) {
+                    multiTools.classList.remove('hidden');
+                    if (isGroup) { groupBtnText.innerText = "解组"; alignBtn.classList.add('hidden'); } else { groupBtnText.innerText = "成组"; alignBtn.classList.remove('hidden'); }
+                } else { multiTools.classList.add('hidden'); }
+            } else {
+                trackTools.classList.add('hidden'); textTools.classList.add('hidden'); markerTools.classList.add('hidden');
+                if (selectedObjects.length > 1 || isGroup) {
+                    multiTools.classList.remove('hidden');
+                    if (isGroup) { groupBtnText.innerText = "解组"; alignBtn.classList.add('hidden'); } else { groupBtnText.innerText = "成组"; alignBtn.classList.remove('hidden'); }
+                } else { multiTools.classList.add('hidden'); }
+            }
+        }
+
+        function updateFloatMenuPosition() {
+            const active = canvas.getActiveObject();
+            if (!active || floatMenu.classList.contains('hidden')) return;
+            const bound = active.getBoundingRect();
+            let top = bound.top - 60;
+            let left = bound.left + (bound.width / 2) - (floatMenu.offsetWidth / 2);
+            if (top < 10) top = bound.top + bound.height + 10;
+            if (left < 10) left = 10;
+            const maxW = canvas.getWidth();
+            if (left + floatMenu.offsetWidth > maxW) left = maxW - floatMenu.offsetWidth - 10;
+            floatMenu.style.top = top + 'px';
+            floatMenu.style.left = left + 'px';
+        }
+
+        function batchUpdateStyle(prop, value) {
+            const active = canvas.getActiveObject();
+            if (!active) return;
+            if (prop === 'fontSize') value = parseInt(value);
+            const objects = active.type === 'activeSelection' ? active.getObjects() : [active];
+            objects.forEach(o => {
+                if (o.type === 'i-text' || o.type === 'text') {
+                    o.set(prop, value);
+                    if (prop === 'stroke' && (!o.strokeWidth || o.strokeWidth === 0)) { o.set('strokeWidth', 2); }
+                }
+            });
+            if (prop === 'fill') document.getElementById('ft-color-preview').style.backgroundColor = value;
+            if (prop === 'stroke') document.getElementById('ft-text-stroke-preview').style.backgroundColor = value;
+            canvas.requestRenderAll();
+            historyManager.save();
+        }
+
+        function batchToggleStyle(prop, val) {
+            const active = canvas.getActiveObject();
+            if (!active) return;
+            const objects = active.type === 'activeSelection' ? active.getObjects() : [active];
+            const first = objects[0];
+            let next;
+            if (prop === 'underline') { next = !first.underline; } else { next = (first.get(prop) === val) ? 'normal' : val; }
+            objects.forEach(o => { if (o.type === 'i-text' || o.type === 'text') { o.set(prop, next); } });
+            if (prop === 'fontWeight') document.getElementById('ft-bold').classList.toggle('bg-slate-200', next === 'bold');
+            if (prop === 'fontStyle') document.getElementById('ft-italic').classList.toggle('bg-slate-200', next === 'italic');
+            if (prop === 'underline') document.getElementById('ft-underline').classList.toggle('bg-slate-200', next);
+            canvas.requestRenderAll();
+            historyManager.save();
+        }
+
+        function batchToggleStroke() {
+            const active = canvas.getActiveObject();
+            if (!active) return;
+            const objects = active.type === 'activeSelection' ? active.getObjects() : [active];
+            const first = objects[0];
+            const hasStroke = first.stroke && first.strokeWidth > 0;
+            objects.forEach(o => {
+                if (o.type === 'i-text' || o.type === 'text') {
+                    if (hasStroke) { o.set({ stroke: null, strokeWidth: 0 }); } else { o.set({ stroke: o.fill === '#000000' ? '#ffffff' : '#000000', strokeWidth: 2, paintFirst: 'stroke' }); }
+                }
+            });
+            canvas.requestRenderAll();
+            historyManager.save();
+        }
+
+        function batchUpdateMarker(prop, value) {
+            const active = canvas.getActiveObject();
+            if (!active) return;
+            if (prop === 'strokeWidth') value = parseFloat(value);
+            const objects = active.type === 'activeSelection' ? active.getObjects() : [active];
+            objects.forEach(o => { if (o.type === 'circle') { o.set(prop, value); } });
+            if (prop === 'fill') document.getElementById('ft-marker-fill-preview').style.backgroundColor = value;
+            if (prop === 'stroke') document.getElementById('ft-marker-stroke-preview').style.backgroundColor = value;
+            canvas.requestRenderAll();
+            historyManager.save();
+        }
+
+        function syncTrackSetting(id, value) {
+            const sidebarEl = document.getElementById(id);
+            if (sidebarEl) sidebarEl.value = value;
+            if (id === 'colorMode') {
+                const pickerContainer = document.getElementById('ft-track-solid-color-container');
+                if (value === 'solid') { pickerContainer.classList.remove('hidden'); document.getElementById('solidColorRow').classList.remove('hidden'); } else { pickerContainer.classList.add('hidden'); document.getElementById('solidColorRow').classList.add('hidden'); }
+            }
+            if (id === 'trackSolidColor') { document.getElementById('ft-track-solid-color-preview').style.backgroundColor = value; }
+            if (simplifiedPoints.length) {
+                isInternalUpdate = true;
+                renderTrackGeometry(false);
+                const newTrack = canvas.getObjects().find(o => o.id === 'track_group');
+                if (newTrack) { canvas.setActiveObject(newTrack); }
+                isInternalUpdate = false;
+                historyManager.save();
+            }
+        }
+
+        function batchUpdateStrokeWidth(width) {
+            const active = canvas.getActiveObject();
+            if (!active) return;
+            width = parseFloat(width);
+            const objects = active.type === 'activeSelection' ? active.getObjects() : [active];
+            objects.forEach(o => {
+                if (o.type === 'i-text' || o.type === 'text') {
+                    if (!o.stroke) o.set('stroke', '#000000');
+                    o.set('strokeWidth', width);
+                }
+            });
+            canvas.requestRenderAll();
+            historyManager.save();
+        }
+
+        function batchToggleShadow() {
+            const active = canvas.getActiveObject();
+            if (!active) return;
+            const objects = active.type === 'activeSelection' ? active.getObjects() : [active];
+            const first = objects[0];
+            const hasShadow = !!first.shadow;
+            const shadowConfig = { color: 'rgba(0,0,0,0.5)', blur: 10, offsetX: 5, offsetY: 5 };
+            objects.forEach(o => { if (hasShadow) { o.set('shadow', null); } else { o.set('shadow', new fabric.Shadow(shadowConfig)); } });
+            ['ft-text-shadow', 'ft-marker-shadow', 'ft-track-shadow'].forEach(id => { const btn = document.getElementById(id); if (btn) btn.classList.toggle('bg-slate-200', !hasShadow); });
+            canvas.requestRenderAll();
+            historyManager.save();
+        }
+
+        function toggleAlignMenu() { alignSubmenu.classList.toggle('hidden'); }
+
+        function getAbsRect(obj) { return obj.getBoundingRect(true); }
+        function alignObjects(mode) {
+            const active = canvas.getActiveObject();
+            if (!active || active.type !== 'activeSelection') return;
+            const objects = active.getObjects();
+            if (objects.length < 2) return;
+            let refObj = objects[0];
+            for (let i = 0; i < selectionHistory.length; i++) {
+                const historyObj = selectionHistory[i];
+                if (objects.includes(historyObj)) { refObj = historyObj; break; }
+            }
+            const refRect = getAbsRect(refObj);
+            objects.forEach(obj => {
+                if (obj === refObj) return;
+                const objRect = getAbsRect(obj);
+                let moveX = 0; let moveY = 0;
+                switch (mode) {
+                    case 'left': moveX = refRect.left - objRect.left; break;
+                    case 'centerH': moveX = (refRect.left + refRect.width / 2) - (objRect.left + objRect.width / 2); break;
+                    case 'right': moveX = (refRect.left + refRect.width) - (objRect.left + objRect.width); break;
+                    case 'top': moveY = refRect.top - objRect.top; break;
+                    case 'centerV': moveY = (refRect.top + refRect.height / 2) - (objRect.top + objRect.height / 2); break;
+                    case 'bottom': moveY = (refRect.top + refRect.height) - (objRect.top + objRect.height); break;
+                }
+                obj.left += moveX; obj.top += moveY; obj.setCoords();
+            });
+            active.setCoords();
+            canvas.requestRenderAll();
+            historyManager.save();
+            toggleAlignMenu();
+        }
+
+        function distributeObjects(axis) {
+            const active = canvas.getActiveObject();
+            if (!active || active.type !== 'activeSelection') return;
+            const objects = active.getObjects();
+            if (objects.length < 3) return;
+            const list = objects.map(obj => ({ obj: obj, rect: getAbsRect(obj) }));
+            if (axis === 'h') {
+                list.sort((a, b) => a.rect.left - b.rect.left);
+                const first = list[0].rect;
+                const last = list[list.length - 1].rect;
+                const minLeft = first.left;
+                const maxRight = last.left + last.width;
+                const totalObjectWidth = list.reduce((sum, item) => sum + item.rect.width, 0);
+                const totalSpace = (maxRight - minLeft) - totalObjectWidth;
+                const gap = totalSpace / (list.length - 1);
+                let currentLeft = minLeft;
+                list.forEach(item => { const moveX = currentLeft - item.rect.left; item.obj.left += moveX; item.obj.setCoords(); currentLeft += item.rect.width + gap; });
+            } else {
+                list.sort((a, b) => a.rect.top - b.rect.top);
+                const first = list[0].rect;
+                const last = list[list.length - 1].rect;
+                const minTop = first.top;
+                const maxBottom = last.top + last.height;
+                const totalObjectHeight = list.reduce((sum, item) => sum + item.rect.height, 0);
+                const totalSpace = (maxBottom - minTop) - totalObjectHeight;
+                const gap = totalSpace / (list.length - 1);
+                let currentTop = minTop;
+                list.forEach(item => { const moveY = currentTop - item.rect.top; item.obj.top += moveY; item.obj.setCoords(); currentTop += item.rect.height + gap; });
+            }
+            active.setCoords();
+            canvas.requestRenderAll();
+            historyManager.save();
+            toggleAlignMenu();
+        }
+
+        function toggleGroup() {
+            const active = canvas.getActiveObject();
+            if (!active) return;
+            if (active.type === 'activeSelection') { active.toGroup(); } else if (active.type === 'group') { active.toActiveSelection(); }
+            canvas.requestRenderAll();
+            updateFloatMenu();
+            historyManager.save();
+        }
+
+        function copyObjects() {
+            const active = canvas.getActiveObject();
+            if (active) { active.clone(cloned => { _clipboard = cloned; }); showToast("已复制"); }
+        }
+
+        function pasteObjects() {
+            if (!_clipboard) return;
+            _clipboard.clone(cloned => {
+                canvas.discardActiveObject();
+                cloned.set({ left: cloned.left + 20, top: cloned.top + 20, evented: true, });
+                if (cloned.type === 'activeSelection') { cloned.canvas = canvas; cloned.forEachObject(obj => { canvas.add(obj); selectionHistory.push(obj); }); cloned.setCoords(); } else { canvas.add(cloned); selectionHistory.push(cloned); }
+                _clipboard.top += 20; _clipboard.left += 20;
+                canvas.setActiveObject(cloned);
+                canvas.requestRenderAll();
+                historyManager.save();
+            });
+        }
+
+        window.addEventListener('keydown', e => {
+            if ((e.ctrlKey || e.metaKey) && e.code === 'KeyC') { if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') { e.preventDefault(); copyObjects(); } }
+            if ((e.ctrlKey || e.metaKey) && e.code === 'KeyV') { if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') { e.preventDefault(); pasteObjects(); } }
+            if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.code === 'KeyG') { e.preventDefault(); const active = canvas.getActiveObject(); if (active && active.type === 'activeSelection') { toggleGroup(); } }
+            if (e.shiftKey && e.code === 'KeyG') { e.preventDefault(); const active = canvas.getActiveObject(); if (active && active.type === 'group') { toggleGroup(); } }
+        });
+
+        window.addEventListener('click', (e) => {
+            const menu = document.getElementById('layoutMenu');
+            const btn = document.getElementById('layoutBtn');
+            if (menu && !menu.classList.contains('hidden')) { if (!menu.contains(e.target) && !btn.contains(e.target)) { toggleLayoutMenu(); } }
+        });
+
+        window.addEventListener('load', () => {
+            historyManager.initFromDB();
+        });
+
+    </script>
+</body>
+
+</html>

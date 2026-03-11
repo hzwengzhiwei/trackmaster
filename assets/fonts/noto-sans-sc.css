@@ -1,0 +1,47 @@
+/* 钉钉进步体 - 默认字体 */
+@font-face {
+  font-family: 'DingTalk JinBuTi';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../webfonts/DingTalkJinBuTi-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+
+/* 为钉钉进步体定义粗体权重 */
+@font-face {
+  font-family: 'DingTalk JinBuTi';
+  font-style: normal;
+  font-weight: 700;
+  src: url('../webfonts/DingTalkJinBuTi-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DingTalk JinBuTi';
+  font-style: normal;
+  font-weight: 900;
+  src: url('../webfonts/DingTalkJinBuTi-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+
+/* 思源黑体作为备用字体 - 保持向后兼容 */
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Noto Sans CJK SC'), local('NotoSansCJKSC-Regular'), local('Source Han Sans SC'), local('SourceHanSansSC-Regular'), local('PingFang SC'), local('Microsoft YaHei'), local('微软雅黑'), local('SimSun'), local('宋体'), sans-serif;
+}
+
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 700;
+  src: local('Noto Sans CJK SC Bold'), local('NotoSansCJKSC-Bold'), local('Source Han Sans SC Bold'), local('SourceHanSansSC-Bold'), local('PingFang SC Semibold'), local('Microsoft YaHei Bold'), local('微软雅黑 Bold'), local('SimHei'), local('黑体'), sans-serif;
+}
+
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 900;
+  src: local('Noto Sans CJK SC Black'), local('NotoSansCJKSC-Black'), local('Source Han Sans SC Heavy'), local('SourceHanSansSC-Heavy'), local('PingFang SC Semibold'), local('Microsoft YaHei Bold'), local('微软雅黑 Bold'), local('SimHei'), local('黑体'), sans-serif;
+}
