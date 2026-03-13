@@ -10,12 +10,6 @@ echo "================================"
 echo "创建资源目录..."
 mkdir -p assets/{js,css,fonts,webfonts}
 
-# 检查网络连接
-if ! ping -c 1 google.com &> /dev/null; then
-    echo "警告: 网络连接不可用，请检查网络连接后重试"
-    exit 1
-fi
-
 echo "开始下载资源文件..."
 
 # 1. 下载 Fabric.js

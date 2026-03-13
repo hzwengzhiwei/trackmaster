@@ -1,0 +1,119 @@
+:root {
+    --primary: #4361ee;
+    --secondary: #7209b7;
+}
+
+body {
+    font-family: 'DingTalk JinBuTi', 'Noto Sans SC', system-ui, sans-serif;
+    background: #0f172a;
+    overflow: hidden;
+}
+
+.canvas-bg {
+    background-color: #1e293b;
+    background-image: radial-gradient(#334155 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+input[type="range"] {
+    accent-color: #3b82f6;
+}
+
+.scroller::-webkit-scrollbar {
+    width: 4px;
+}
+
+.scroller::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 2px;
+}
+
+.style-btn.active {
+    @apply bg-blue-600 text-white border-blue-500;
+}
+
+/* 模态框动画 */
+.modal-enter {
+    opacity: 0;
+    transform: scale(0.95);
+}
+
+.modal-enter-active {
+    opacity: 1;
+    transform: scale(1);
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.modal-exit {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.modal-exit-active {
+    opacity: 0;
+    transform: scale(0.95);
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+/* Toast 样式 */
+#toast {
+    visibility: hidden;
+    min-width: 120px;
+    /* 半透明磨砂背景 */
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #fff;
+    text-align: center;
+    /* 胶囊圆角 */
+    border-radius: 9999px;
+    padding: 10px 24px;
+    /* 描边增强质感 */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+
+    position: fixed;
+    z-index: 100;
+    /* 右上角定位 */
+    right: 30px;
+    top: 30px;
+
+    /* 初始状态：向右偏移出屏幕 */
+    transform: translateX(120%);
+    opacity: 0;
+
+    /* 弹性过渡动画 */
+    transition: transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28), opacity 0.3s ease;
+    font-size: 14px;
+    pointer-events: none;
+}
+
+#toast.show {
+    visibility: visible;
+    opacity: 1;
+    /* 显示状态：回到原位 */
+    transform: translateX(0);
+}
+
+.gradient-text {
+    background: linear-gradient(to right, #ff00cc, #3333ff, #00ccff, #00ff00, #ffff00, #ff0000);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    background-size: 300% auto;
+    animation: shine 6s linear infinite;
+}
+
+@keyframes shine {
+    to {
+        background-position: 300% center;
+    }
+}
+
+.glass-panel {
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
