@@ -1,18 +1,46 @@
 :root {
     --primary: #4361ee;
     --secondary: #7209b7;
+
+    /* 深色主题变量 */
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+    --text-primary: #ffffff;
+    --text-secondary: #e2e8f0;
+    --text-tertiary: #94a3b8;
+    --glass-bg: rgba(0, 0, 0, 0.5);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --scrollbar-thumb: #475569;
+    --toast-bg: rgba(0, 0, 0, 0.6);
+}
+
+/* 浅色主题变量 */
+body.light-theme {
+    --bg-primary: #f8fafc;
+    --bg-secondary: #e2e8f0;
+    --bg-tertiary: #cbd5e1;
+    --text-primary: #1e293b;
+    --text-secondary: #334155;
+    --text-tertiary: #64748b;
+    --glass-bg: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(0, 0, 0, 0.1);
+    --scrollbar-thumb: #94a3b8;
+    --toast-bg: rgba(255, 255, 255, 0.9);
 }
 
 body {
     font-family: 'DingTalk JinBuTi', 'Noto Sans SC', system-ui, sans-serif;
-    background: #0f172a;
+    background: var(--bg-primary);
     overflow: hidden;
+    transition: background-color 0.3s ease;
 }
 
 .canvas-bg {
-    background-color: #1e293b;
-    background-image: radial-gradient(#334155 1px, transparent 1px);
+    background-color: var(--bg-secondary);
+    background-image: radial-gradient(var(--bg-tertiary) 1px, transparent 1px);
     background-size: 20px 20px;
+    transition: background-color 0.3s ease;
 }
 
 input[type="range"] {
@@ -24,7 +52,7 @@ input[type="range"] {
 }
 
 .scroller::-webkit-scrollbar-thumb {
-    background: #475569;
+    background: var(--scrollbar-thumb);
     border-radius: 2px;
 }
 
@@ -60,30 +88,30 @@ input[type="range"] {
     visibility: hidden;
     min-width: 120px;
     /* 半透明磨砂背景 */
-    background-color: rgba(0, 0, 0, 0.6);
+    background-color: var(--toast-bg);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    color: #fff;
+    color: var(--text-primary);
     text-align: center;
     /* 胶囊圆角 */
     border-radius: 9999px;
     padding: 10px 24px;
     /* 描边增强质感 */
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 
     position: fixed;
     z-index: 100;
     /* 右上角定位 */
     right: 30px;
-    top: 30px;
+    top: 80px;
 
     /* 初始状态：向右偏移出屏幕 */
     transform: translateX(120%);
     opacity: 0;
 
     /* 弹性过渡动画 */
-    transition: transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28), opacity 0.3s ease;
+    transition: transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28), opacity 0.3s ease, background-color 0.3s ease, color 0.3s ease;
     font-size: 14px;
     pointer-events: none;
 }
@@ -104,6 +132,16 @@ input[type="range"] {
     animation: shine 6s linear infinite;
 }
 
+/* 浅色主题下的优化渐变 */
+body.light-theme .gradient-text {
+    background: linear-gradient(to right, #e91e63, #1e3a8a, #0369a1, #047857, #ca8a04, #dc2626);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    background-size: 300% auto;
+    animation: shine 6s linear infinite;
+}
+
 @keyframes shine {
     to {
         background-position: 300% center;
@@ -111,9 +149,79 @@ input[type="range"] {
 }
 
 .glass-panel {
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--glass-bg);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* 主题切换按钮样式 */
+#themeToggle {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+}
+
+#themeToggle:hover {
+    background: var(--glass-bg);
+    transform: scale(1.05);
+}
+
+/* 浅色主题下的按钮图标和文字样式 */
+body.light-theme .glass-panel {
+    color: var(--text-primary);
+}
+
+body.light-theme .glass-panel i,
+body.light-theme .glass-panel span:not(.gradient-text) {
+    color: var(--text-primary);
+}
+
+/* 确保gradient-text在所有主题下都保持渐变效果 */
+.gradient-text {
+    color: transparent !important;
+}
+
+/* 浮动菜单在浅色主题下的样式 */
+body.light-theme #floatingMenu {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+}
+
+body.light-theme #floatingMenu select,
+body.light-theme #floatingMenu input {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--glass-border);
+}
+
+body.light-theme #floatingMenu button {
+    color: var(--text-secondary);
+}
+
+/* 模态框在浅色主题下的样式 */
+body.light-theme #exportModal .bg-white {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* Tooltip 样式 */
+.tooltip {
+    background-color: var(--toast-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+body.light-theme .tooltip {
+    background-color: rgba(0, 0, 0, 0.8) !important;
+    color: white !important;
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
