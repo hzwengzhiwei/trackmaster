@@ -74,4 +74,5 @@ Save the cover to your photo album and share it.
 ![IMG_EN_2](IMG/IMG_EN_2.png)
 ![IMG_EN_3](IMG/IMG_EN_3.png)
 ![IMG_EN_4](IMG/IMG_EN_4.png)
+![IMG_EN_4](IMG/IMG_EN_4_1.png)
 ![IMG_EN_5](IMG/IMG_EN_5.png)
