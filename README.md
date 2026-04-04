@@ -57,7 +57,7 @@ Save the cover to your photo album and share it.
 326663495@qq.com
 ---
 
-## 截图
+## 截图/Screenshots
 
 ![IMG_1](IMG/IMG_1.png)
 ![IMG_2](IMG/IMG_2.png)
@@ -68,7 +68,6 @@ Save the cover to your photo album and share it.
 ![IMG_7](IMG/IMG_7.png)
 ![IMG_8](IMG/IMG_8.png)
 
-## Screenshots
 
 ![IMG_EN_1](IMG/IMG_EN_1.png)
 ![IMG_EN_2](IMG/IMG_EN_2.png)
@@ -76,3 +75,7 @@ Save the cover to your photo album and share it.
 ![IMG_EN_4](IMG/IMG_EN_4.png)
 ![IMG_EN_4](IMG/IMG_EN_4_1.png)
 ![IMG_EN_5](IMG/IMG_EN_5.png)
+
+![IMG_PAD_1](IMG/IMG_PAD_1.png)
+![IMG_PAD_2](IMG/IMG_PAD_2.png)
+![IMG_PAD_3](IMG/IMG_PAD_3.png)
